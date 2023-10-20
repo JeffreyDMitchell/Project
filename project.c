@@ -343,15 +343,15 @@ void display()
             glColor3f(0,0,0);
 
          tile(
-            x_chunk*chunk_size + amod(chunk_off_x * chunk_size, chunk_size, half_chunk_size),
+            x_chunk*chunk_size + amod(chunk_off_x * chunk_size - cam_x, chunk_size, half_chunk_size),
             0, 
-            z_chunk*chunk_size + amod(chunk_off_z * chunk_size, chunk_size, half_chunk_size),
+            z_chunk*chunk_size + amod(chunk_off_z * chunk_size - cam_z, chunk_size, half_chunk_size),
             chunk_size);
       }
 
    glColor3f(1,0,0);
-   cube(amod(cam_x, chunk_size, half_chunk_size), 0, amod(cam_z, chunk_size, half_chunk_size), .25, .25, .25, 0, 0, 0);
-
+   // cube(amod(cam_x, chunk_size, half_chunk_size), 0, amod(cam_z, chunk_size, half_chunk_size), .25, .25, .25, 0, 0, 0);
+   cube(0, 0, 0, .25, .25, .25, 0, 0, 0);
    glDisable(GL_LIGHTING);
    glColor3f(1,1,1);
 
