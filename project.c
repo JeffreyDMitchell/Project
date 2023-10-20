@@ -93,9 +93,11 @@ unsigned char keys[256];
 #define n 500
 vtx is[n];
 
-double amod(double a, double b)
+double amod(double a, double b, double off)
 {
-   return fmod(a, b) + (a < 0) ? b : 0;
+   double r =  fmod(a+off, b);
+
+   return ((r < 0) ? r+b : r)-off;
 }
 
 void normalizeVector(GLfloat *v, GLfloat *dest) 
@@ -340,15 +342,15 @@ void display()
          else
             glColor3f(0,0,0);
 
-            tile(
-               x_chunk*chunk_size + chunk_off_x * chunk_size,
-               0, 
-               z_chunk*chunk_size + chunk_off_z * chunk_size,
-               chunk_size);
+         tile(
+            x_chunk*chunk_size + amod(chunk_off_x * chunk_size, chunk_size, half_chunk_size),
+            0, 
+            z_chunk*chunk_size + amod(chunk_off_z * chunk_size, chunk_size, half_chunk_size),
+            chunk_size);
       }
 
    glColor3f(1,0,0);
-   cube(cam_x, 0, cam_z, .25, .25, .25, 0, 0, 0);
+   cube(amod(cam_x, chunk_size, half_chunk_size), 0, amod(cam_z, chunk_size, half_chunk_size), .25, .25, .25, 0, 0, 0);
 
    glDisable(GL_LIGHTING);
    glColor3f(1,1,1);
