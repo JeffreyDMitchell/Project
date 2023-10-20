@@ -1,0 +1,23 @@
+HOMEWORK 5: LIGHTING
+
+Notes:
+    Added lighting to my sword. Diffuse and ambient light contributions can be tweaked in the parameters as described below.
+
+    Tweak the parameters to change the properties of the sword. Normals are generated dynamically with blade geometry!
+
+    Program derived from example 13, provided by professor
+
+Running the program:
+    makefile produces an executable named "hw5"
+    run with ./hw5
+
+Program controls:
+    l ------------------- toggle lighting
+    m ------------------- toggle light movement
+    [] ------------------ manually move light (if stopped)
+    WASD ---------------- rotate scene/view
+    Arrow Up/Down ------- select parameters
+    Arrow Left/Right ---- modify parameters
+
+Project time:
+    Approx 4hrs
