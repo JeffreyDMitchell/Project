@@ -70,21 +70,21 @@ typedef struct {int A,B,C;} tri;
 
 // TERRAIN GEN STUFF
 double cam_x = 0.0001, cam_z = 0.0001;
-double chunk_size = 10;
+double chunk_size = 50;
 double render_dist_dbl = 1;
-int chunk_res = 4;
-
+int chunk_res = 8;
+double cam_y_offset = -20;
 
 
 float cam_rot_speed = 2.0f;
 
 int windowHeight = 0;
 
-#define PARAM_CT 2
+#define PARAM_CT 3
 struct param params[PARAM_CT] = {
    {.name="ambient light", .val=&ambient, .delta=1, .min=0, .max=100},
-   {.name="render dist", .val=&render_dist_dbl, .delta=1, .min=0, .max=10000}
-   // {.name="cam_x", .val=&cam_x, .delta=.1, .min=-100, .max=100},
+   {.name="render dist", .val=&render_dist_dbl, .delta=1, .min=0, .max=10000},
+   {.name="y offset", .val=&cam_y_offset, .delta=5, .min=-1000, .max=1000}
    // {.name="cam_z", .val=&cam_z, .delta=.1, .min=-100, .max=100}
 };
 int cursor = 0;
@@ -170,10 +170,10 @@ void processInput()
    if(keys['q']) fov--;
    if(keys['e']) fov++;
 
-   if(keys['i']) cam_z-=1.0;
-   if(keys['k']) cam_z+=1.0;
-   if(keys['j']) cam_x-=1.0;
-   if(keys['l']) cam_x+=1.0;
+   if(keys['i']) cam_z-=10.0;
+   if(keys['k']) cam_z+=10.0;
+   if(keys['j']) cam_x-=10.0;
+   if(keys['l']) cam_x+=10.0;
 
    // bounds checking
    if(ph >= 90) ph = 90;
@@ -377,10 +377,18 @@ static void drawChunk(double screen_x,double y, double screen_z, int id_x, int i
          float s1 = 0.1f;
          float s2 = 0.01f;
          float s3 = 0.001f;
+
+         float sbiome = 0.0005f;
          
          chunk_verts[z][x] = 
+            // "topography"
+            (
             stb_perlin_noise3(vert_x * s1, 0, vert_z * s1, 0, 0, 0) * 5 + 
-            stb_perlin_noise3(vert_x * s2, 0, vert_z * s2, 0, 0, 0) * 20
+            stb_perlin_noise3(vert_x * s2, 1, vert_z * s2, 0, 0, 0) * 50 + 
+            stb_perlin_noise3(vert_x * s3, 2, vert_z * s3, 0, 0, 0) * 100
+            )
+            // "biome" (hilly or flat)
+            * (stb_perlin_noise3(vert_x * sbiome, 2, vert_z * sbiome, 0, 0, 0) + 1) * 3
          ;
       }
 
@@ -507,18 +515,29 @@ void display()
          int adjusted_x = x_chunk + chunk_off_x;
          int adjusted_z = z_chunk + chunk_off_z;
 
-         if ((adjusted_x + adjusted_z) % 2) {
-               glColor3f(1, 1, 1);
-         } else {
-               glColor3f(0, 0, 0);
-         }
+         // if ((adjusted_x + adjusted_z) % 2) {
+         //       glColor3f(1, 1, 1);
+         // } else {
+         //       glColor3f(0, 0, 0);
+         // }
+
+         int chunk_world_x = (int) (floor((cam_x + half_chunk_size) / chunk_size) + x_chunk);
+         int chunk_world_z = (int) (floor((cam_z + half_chunk_size) / chunk_size) + z_chunk);
+
+         double x_val = sin((chunk_world_x / 100.1) + 1) / 2.0;
+         double z_val = sin((chunk_world_z / 100.0) + 1) / 2.0;
+
+         if((adjusted_x + adjusted_z) % 2)
+            glColor3f(1-x_val,1-z_val,1);
+         else
+            glColor3f(x_val,z_val,0);
 
          drawChunk(
                x_chunk * chunk_size + amod(chunk_off_x * chunk_size - cam_x, chunk_size, half_chunk_size),
-               -20,
+               cam_y_offset,
                z_chunk * chunk_size + amod(chunk_off_z * chunk_size - cam_z, chunk_size, half_chunk_size),
-               (int) (floor((cam_x + half_chunk_size) / chunk_size) + x_chunk),
-               (int) (floor((cam_z + half_chunk_size) / chunk_size) + z_chunk)
+               chunk_world_x,
+               chunk_world_z
          );
       }
    }
