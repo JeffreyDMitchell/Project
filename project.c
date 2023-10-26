@@ -344,33 +344,32 @@ static void drawChunk(chunk_t * chunk, double screen_x, double y, double screen_
          int idx;
 
          // TODO completely rework this color stuff...
-         
 
-         float sand[] = {0.810, 0.778, 0.429};
-         float grass[] = {0.245, 0.650, 0.208};
+         const float sand[] = {0.810, 0.778, 0.429};
+         const float grass[] = {0.245, 0.650, 0.208};
          
          
          idx = (z * (chunk_res_verts)) + x;
          norm = chunk->normals[idx];
-         glColor3fv((mesh[idx] > water_level + 10) ? &grass : &sand);
+         glColor3fv((mesh[idx] > water_level + 10) ? grass : sand);
          glNormal3f(norm.x, norm.y, norm.z);
          glVertex3f(x1,mesh[idx],z1);
 
          idx = ((z+1) * (chunk_res_verts)) + x;
          norm = chunk->normals[idx];
-         glColor3fv((mesh[idx] > water_level + 10) ? &grass : &sand);
+         glColor3fv((mesh[idx] > water_level + 10) ? grass : sand);
          glNormal3f(norm.x, norm.y, norm.z);
          glVertex3f(x1,mesh[idx],z2);
 
          idx = ((z+1) * (chunk_res_verts)) + (x+1);
          norm = chunk->normals[idx];
-         glColor3fv((mesh[idx] > water_level + 10) ? &grass : &sand);
+         glColor3fv((mesh[idx] > water_level + 10) ? grass : sand);
          glNormal3f(norm.x, norm.y, norm.z);
          glVertex3f(x2,mesh[idx],z2);
 
          idx = (z * (chunk_res_verts)) + (x+1);
          norm = chunk->normals[idx];
-         glColor3fv((mesh[idx] > water_level + 10) ? &grass : &sand);
+         glColor3fv((mesh[idx] > water_level + 10) ? grass : sand);
          glNormal3f(norm.x, norm.y, norm.z);
          glVertex3f(x2,mesh[idx],z1);
       }
