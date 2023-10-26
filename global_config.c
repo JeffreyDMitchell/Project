@@ -3,7 +3,7 @@
 // TERRAIN GEN STUFF
 double chunk_size = 2048;
 double render_dist_dbl = 1;
-double water_level = 0;
+double water_level = -580;
 int chunk_res_verts = CHUNK_RES;
 int chunk_res_faces = CHUNK_RES-1;
 

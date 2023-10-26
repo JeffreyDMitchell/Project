@@ -341,21 +341,38 @@ static void drawChunk(chunk_t * chunk, double screen_x, double y, double screen_
 
          float * mesh = chunk->mesh;
          vtx norm;
-         norm = chunk->normals[(z * (chunk_res_verts)) + x];
-         glNormal3f(norm.x, norm.y, norm.z);
-         glVertex3f(x1,mesh[(z * (chunk_res_verts)) + x],z1);
+         int idx;
 
-         norm = chunk->normals[((z+1) * (chunk_res_verts)) + x];
-         glNormal3f(norm.x, norm.y, norm.z);
-         glVertex3f(x1,mesh[((z+1) * (chunk_res_verts)) + x],z2);
+         // TODO completely rework this color stuff...
+         
 
-         norm = chunk->normals[((z+1) * (chunk_res_verts)) + (x+1)];
+         float sand[] = {0.810, 0.778, 0.429};
+         float grass[] = {0.245, 0.650, 0.208};
+         
+         
+         idx = (z * (chunk_res_verts)) + x;
+         norm = chunk->normals[idx];
+         glColor3fv((mesh[idx] > water_level + 10) ? &grass : &sand);
          glNormal3f(norm.x, norm.y, norm.z);
-         glVertex3f(x2,mesh[((z+1) * (chunk_res_verts)) + (x+1)],z2);
+         glVertex3f(x1,mesh[idx],z1);
 
-         norm = chunk->normals[(z * (chunk_res_verts)) + (x+1)];
+         idx = ((z+1) * (chunk_res_verts)) + x;
+         norm = chunk->normals[idx];
+         glColor3fv((mesh[idx] > water_level + 10) ? &grass : &sand);
          glNormal3f(norm.x, norm.y, norm.z);
-         glVertex3f(x2,mesh[(z * (chunk_res_verts)) + (x+1)],z1);
+         glVertex3f(x1,mesh[idx],z2);
+
+         idx = ((z+1) * (chunk_res_verts)) + (x+1);
+         norm = chunk->normals[idx];
+         glColor3fv((mesh[idx] > water_level + 10) ? &grass : &sand);
+         glNormal3f(norm.x, norm.y, norm.z);
+         glVertex3f(x2,mesh[idx],z2);
+
+         idx = (z * (chunk_res_verts)) + (x+1);
+         norm = chunk->normals[idx];
+         glColor3fv((mesh[idx] > water_level + 10) ? &grass : &sand);
+         glNormal3f(norm.x, norm.y, norm.z);
+         glVertex3f(x2,mesh[idx],z1);
       }
    glEnd();
    glPopMatrix();
@@ -528,7 +545,7 @@ void display()
          else
             glColor3f(x_val,z_val,0);
 
-         glColor3f(0.245, 0.650, 0.208);
+         // glColor3f(0.245, 0.650, 0.208);
 
          chunk_t * chunk = malloc(sizeof(chunk_t));
          initChunk(chunk);
