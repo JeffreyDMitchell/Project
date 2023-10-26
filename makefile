@@ -6,18 +6,18 @@ all: $(EXE)
 
 #  Msys/MinGW
 ifeq "$(OS)" "Windows_NT"
-CFLG=-O3 -Wall -DUSEGLEW
+CFLG=-Ofast -Wall -DUSEGLEW
 LIBS=-lfreeglut -lglew32 -lglu32 -lopengl32 -lm
 CLEAN=rm -f *.exe *.o *.a
 else
 #  OSX
 ifeq "$(shell uname)" "Darwin"
 RES=$(shell uname -r|sed -E 's/(.).*/\1/'|tr 12 21)
-CFLG=-O3 -Wall -Wno-deprecated-declarations -DRES=$(RES)
+CFLG=-Ofast -Wall -Wno-deprecated-declarations -DRES=$(RES)
 LIBS=-framework GLUT -framework OpenGL
 #  Linux/Unix/Solaris
 else
-CFLG=-O3 -Wall
+CFLG=-Ofast -Wall
 LIBS=-lglut -lGLU -lGL -lm
 endif
 #  OSX/Linux/Unix/Solaris
@@ -25,13 +25,18 @@ CLEAN=rm -f $(EXE) *.o *.a
 endif
 
 # Dependencies
-project.o: project.c CSCIx229.h
+project.o: project.c CSCIx229.h stb_perlin.h global_config.h
 fatal.o: fatal.c CSCIx229.h
 errcheck.o: errcheck.c CSCIx229.h
 print.o: print.c CSCIx229.h
 loadtexbmp.o: loadtexbmp.c CSCIx229.h
 loadobj.o: loadobj.c CSCIx229.h
 projection.o: projection.c CSCIx229.h
+
+
+
+global_config.o: global_config.c global_config.h
+chunk.o: chunk.c chunk.h global_config.h
 
 #  Create archive
 CSCIx229.a:fatal.o errcheck.o print.o loadtexbmp.o loadobj.o projection.o
@@ -44,7 +49,7 @@ CSCIx229.a:fatal.o errcheck.o print.o loadtexbmp.o loadobj.o projection.o
 	g++ -c $(CFLG)  $<
 
 #  Link
-project:project.o   CSCIx229.a
+project:project.o   CSCIx229.a chunk.o global_config.o
 	gcc $(CFLG) -o $@ $^  $(LIBS)
 
 #  Clean

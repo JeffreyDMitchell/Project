@@ -1,7 +1,17 @@
+#include <math.h>
+
+
 #define STB_PERLIN_IMPLEMENTATION
 #include "stb_perlin.h"
 #include "CSCIx229.h"
 #include "global_config.h"
+#include "chunk.h"
+
+typedef struct vtx
+{
+   float x,y,z;
+} vtx;
+
 
 struct param
 {
@@ -14,17 +24,40 @@ struct param
 
 typedef struct chunk_t
 {
+   int id_x, id_y;
+   int hash;
    // combine for spacial locality reasons? idk man i just work here
    float * mesh;
-   float * normals;
+   vtx * normals;
    // TODO
    // clutter stuff
 } chunk_t;
 
+float smoothstep(float edge0, float edge1, float x) 
+{
+    float t = fminf(fmaxf((x - edge0) / (edge1 - edge0), 0.0f), 1.0f);
+    return t * t * (3.0f - 2.0f * t);
+}
+
+void normalizeVector(vtx *v) 
+{
+   float length = sqrt(v->x * v->x + v->y * v->y + v->z * v->z);
+   v->x /= length;
+   v->y /= length;
+   v->z /= length;
+}
+
+void crossProduct(vtx *v1, vtx *v2, vtx *dest) 
+{
+   dest->x = v1->y * v2->z - v1->z * v2->y;
+   dest->y = v1->z * v2->x - v1->x * v2->z;
+   dest->z = v1->x * v2->y - v1->y * v2->x;
+}
+
 void initChunk(chunk_t * chunk)
 {
-   chunk->mesh = malloc(sizeof(float) * (chunk_res+1) * (chunk_res+1));
-   chunk->normals = malloc(sizeof(float) * chunk_res * chunk_res);
+   chunk->mesh = malloc(sizeof(float) * (chunk_res_verts) * (chunk_res_verts));
+   chunk->normals = malloc(sizeof(vtx) * chunk_res_verts * chunk_res_verts);
 }
 
 void destroyChunk(chunk_t * chunk)
@@ -35,41 +68,105 @@ void destroyChunk(chunk_t * chunk)
 }
 void generateChunk(chunk_t * chunk, int id_x, int id_z)
 {
+   double frag = 1.0 / chunk_res_faces;
    float adj_x = id_x * chunk_size;
    float adj_z = id_z * chunk_size;
    double half_chunk_size = chunk_size / 2.0;
 
-   for(int z = 0; z < chunk_res+1; z++)
-      for(int x = 0; x < chunk_res+1; x++)
+   for(int z = 0; z < chunk_res_verts; z++)
+      for(int x = 0; x < chunk_res_verts; x++)
       {
-         float vert_x = adj_x+(x / (double) chunk_res * chunk_size) - half_chunk_size;
-         float vert_z = adj_z+(z / (double) chunk_res * chunk_size) - half_chunk_size;
+         float vert_x = adj_x+(x / (double) chunk_res_faces * chunk_size) - half_chunk_size;
+         float vert_z = adj_z+(z / (double) chunk_res_faces * chunk_size) - half_chunk_size;
 
          float s0 = 1.0f;
          float s1 = 0.1f;
-         float s2 = 0.01f;
-         float s3 = 0.001f;
+         float s2 = 0.005f;
+         float s3 = 0.002f;
+         float s4 = 0.0005f;
 
-         float sbiome = 0.0005f;
+         float sbiome = 0.0001f;
          
-         chunk->mesh[(z * (chunk_res+1)) + x] = 
-            // "topography"
-            (
-            stb_perlin_noise3(vert_x * s1, 0, vert_z * s1, 0, 0, 0) * 5 + 
-            stb_perlin_noise3(vert_x * s2, 1, vert_z * s2, 0, 0, 0) * 50 + 
-            stb_perlin_noise3(vert_x * s3, 2, vert_z * s3, 0, 0, 0) * 100
-            )
-            // "biome" (hilly or flat)
-            * (stb_perlin_noise3(vert_x * sbiome, 2, vert_z * sbiome, 0, 0, 0) + 1) * 3
+         // chunk->mesh[(z * (chunk_res_verts)) + x] = 
+         //    // "topography"
+         //    (
+         //       // (stb_perlin_noise3(vert_x * s1, 0, vert_z * s1, 0, 0, 0) + 1) * 5 + 
+         //       (stb_perlin_noise3(vert_x * s2, 1, vert_z * s2, 0, 0, 0) + 1) * 50 + 
+         //       (stb_perlin_noise3(vert_x * s3, 2, vert_z * s3, 0, 0, 0) + 1) * 100
+         //    )
+         //    // "biome" (hilly or flat)
+         //    * smoothstep(0.05,0.95,stb_perlin_noise3(vert_x * sbiome, 2, vert_z * sbiome, 0, 0, 0) + 1) * 3
+         // ;
+         float base = (stb_perlin_noise3(vert_x * s4, 0, vert_z * s4, 0, 0, 0) + 1) / 2.0;
+         float hills = base * 1000;
+         float mountains = smoothstep(.5,.95,base) * pow((stb_perlin_noise3(vert_x * s2, 1, vert_z * s2, 0, 0, 0) + 1) / 2.0 * 2, 3) * 100;
+         float lakes = smoothstep(0.5,0.95,1.0-base) * (stb_perlin_noise3(vert_x * s3, 2, vert_z * s3, 0, 0, 0) - 1) / 2.0 * 500;
+
+         chunk->mesh[(z * (chunk_res_verts)) + x] = 
+            hills + 
+            mountains + 
+            lakes +
+
+            cam_y_offset
          ;
       }
+
+   // generate quads on per-face basis
+   vtx face_norms[chunk_res_faces][chunk_res_faces];
+   vtx e1, e2, norm;
+   for(int z = 0; z < chunk_res_faces; z++)
+      for(int x = 0; x < chunk_res_faces; x++)
+      {
+         // normals must mirror geometry as it would be drawn...
+         float x1 = (frag*x)-0.5;
+         float x2 = (frag*(x+1))-0.5;
+         float z1 = (frag*z)-0.5;
+         float z2 = (frag*(z+1))-0.5;
+
+         float * mesh = chunk->mesh;
+
+         e1.x = 0; e1.z = z2-z1; e1.y = mesh[((z+1) * (chunk_res_verts)) + x] - mesh[(z * (chunk_res_verts)) + x];
+         e2.x = x2-x1; e2.z = 0; e2.y = mesh[((z+1) * (chunk_res_verts)) + (x+1)] - mesh[((z+1) * (chunk_res_verts)) + x];
+
+         crossProduct(&e1, &e2, &norm);
+         // TODO remove
+         normalizeVector(&norm);
+
+         face_norms[z][x] = norm;
+      }
+
+   // coalesce into per-vert normals
+   for(int z = 0; z < chunk_res_verts; z++)
+      for(int x = 0; x < chunk_res_verts; x++)
+      {
+         vtx norm = {0.0,0.0,0.0};
+
+         for(int z_off = -1; z_off <= 1; z_off++)
+            for(int x_off = -1; x_off <= 1; x_off++)
+            {
+               int eff_x = x + x_off;
+               int eff_z = z + z_off;
+               
+               // oob, skip to next normal
+               if(eff_x < 0 || eff_z < 0 || eff_x >= chunk_res_faces || eff_z >= chunk_res_faces) continue;
+
+               vtx * cur = &face_norms[eff_z][eff_x];
+               norm.x += cur->x;
+               norm.y += cur->y;
+               norm.z += cur->z;
+            }
+         normalizeVector(&norm);
+         chunk->normals[(z * (chunk_res_verts)) + x] = norm;
+      }
+
 }
 
 struct param params[PARAM_CT] = {
    {.name="ambient light", .val=&ambient, .delta=1, .min=0, .max=100},
    {.name="render dist", .val=&render_dist_dbl, .delta=1, .min=0, .max=10000},
    {.name="y offset", .val=&cam_y_offset, .delta=5, .min=-1000, .max=1000},
-   {.name="speed", .val=&cam_speed, .delta=.1, .min=-.1, .max=10}
+   {.name="speed", .val=&cam_speed, .delta=1.0, .min=-.1, .max=100},
+   {.name="water level", .val=&water_level, .delta=5.0, .min=-1000, .max=1000},
 };
 int cursor = 0;
 
@@ -90,21 +187,6 @@ double omod(double a, double b)
    double r = fmod(a, b);
 
    return (r < 0) ? r+b : r;
-}
-
-void normalizeVector(GLfloat *v, GLfloat *dest) 
-{
-   float length = sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
-   dest[0] = v[0] / length;
-   dest[1] = v[1] / length;
-   dest[2] = v[2] / length;
-}
-
-void crossProduct(GLfloat *v1, GLfloat *v2, GLfloat *dest) 
-{
-   dest[0] = v1[1] * v2[2] - v1[2] * v2[1];
-   dest[1] = v1[2] * v2[0] - v1[0] * v2[2];
-   dest[2] = v1[0] * v2[1] - v1[1] * v2[0];
 }
 
 void key_typed(unsigned char key,int x,int y)
@@ -151,7 +233,7 @@ void processInput()
 
    // bounds checking
    if(ph >= 90) ph = 90;
-   if(ph <= 0) ph = 0;
+   if(ph <= -90) ph = -90;
    if(fov >= 80) fov = 80;
    if(fov <= 20) fov = 20;
    if(th >= 360) th = 0;
@@ -167,7 +249,7 @@ static void cube(double x,double y, double z,
       //  Set specular color to white
    float white[] = {1,1,1,1};
    float black[] = {0,0,0,1};
-   glMaterialfv(GL_FRONT_AND_BACK,GL_SPECULAR,white);
+   // glMaterialfv(GL_FRONT_AND_BACK,GL_SPECULAR,white);
    glMaterialfv(GL_FRONT_AND_BACK,GL_EMISSION,black);
 
    // Save transformation
@@ -228,97 +310,6 @@ static void cube(double x,double y, double z,
    glPopMatrix();
 }
 
-// static void drawChunk(double screen_x,double y, double screen_z, int id_x, int id_z)
-// {
-//    float white[] = {1,1,1,1};
-//    float black[] = {0,0,0,1};
-//    glMaterialfv(GL_FRONT_AND_BACK,GL_SPECULAR,white);
-//    glMaterialfv(GL_FRONT_AND_BACK,GL_EMISSION,black);
-
-//    // Save transformation
-//    glPushMatrix();
-//    // Offset
-//    float adj_x = id_x * chunk_size;
-//    float adj_z = id_z * chunk_size;
-//    double frag = 1.0 / chunk_res;
-
-//    double half_chunk_size = chunk_size / 2.0;
-
-//    glTranslated(screen_x,y,screen_z);
-//    glScaled(chunk_size, 1.0, chunk_size);
-
-//    // chunk_res segments means chunk_res+1 verts i guess 
-//    float chunk_verts[chunk_res+1][chunk_res+1];
-
-//    for(int z = 0; z < chunk_res+1; z++)
-//       for(int x = 0; x < chunk_res+1; x++)
-//       {
-//          float vert_x = adj_x+(x / (double) chunk_res * chunk_size) - half_chunk_size;
-//          float vert_z = adj_z+(z / (double) chunk_res * chunk_size) - half_chunk_size;
-
-//          // chunk_verts[z][x] = sin(vert_x / 10.0) - sin(vert_z / 10.0);
-//          // chunk_verts[z][x] *= 10.0;
-
-//          float s0 = 1.0f;
-//          float s1 = 0.1f;
-//          float s2 = 0.01f;
-//          float s3 = 0.001f;
-
-//          float sbiome = 0.0005f;
-         
-//          chunk_verts[z][x] = 
-//             // "topography"
-//             (
-//             stb_perlin_noise3(vert_x * s1, 0, vert_z * s1, 0, 0, 0) * 5 + 
-//             stb_perlin_noise3(vert_x * s2, 1, vert_z * s2, 0, 0, 0) * 50 + 
-//             stb_perlin_noise3(vert_x * s3, 2, vert_z * s3, 0, 0, 0) * 100
-//             )
-//             // "biome" (hilly or flat)
-//             * (stb_perlin_noise3(vert_x * sbiome, 2, vert_z * sbiome, 0, 0, 0) + 1) * 3
-//          ;
-//       }
-   
-//    glBegin(GL_QUADS);
-//    for(int z = 0; z < chunk_res; z++)
-//       for(int x = 0; x < chunk_res; x++)
-//       {
-//          float x1 = (frag*x)-0.5;
-//          float x2 = (frag*(x+1))-0.5;
-//          float z1 = (frag*z)-0.5;
-//          float z2 = (frag*(z+1))-0.5;
-
-//          glVertex3f(x1,chunk_verts[z][x],z1);
-//          glVertex3f(x1,chunk_verts[z+1][x],z2);
-//          glVertex3f(x2,chunk_verts[z+1][x+1],z2);
-//          glVertex3f(x2,chunk_verts[z][x+1],z1);
-//       }
-//    glEnd();
-
-//    glPopMatrix();
-// }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 static void drawChunk(chunk_t * chunk, double screen_x, double y, double screen_z, int id_x, int id_z)
 {
@@ -332,7 +323,7 @@ static void drawChunk(chunk_t * chunk, double screen_x, double y, double screen_
    // Offset
    float adj_x = id_x * chunk_size;
    float adj_z = id_z * chunk_size;
-   double frag = 1.0 / chunk_res;
+   double frag = 1.0 / chunk_res_faces;
 
    double half_chunk_size = chunk_size / 2.0;
 
@@ -340,8 +331,8 @@ static void drawChunk(chunk_t * chunk, double screen_x, double y, double screen_
    glScaled(chunk_size, 1.0, chunk_size);
    
    glBegin(GL_QUADS);
-   for(int z = 0; z < chunk_res; z++)
-      for(int x = 0; x < chunk_res; x++)
+   for(int z = 0; z < chunk_res_faces; z++)
+      for(int x = 0; x < chunk_res_faces; x++)
       {
          float x1 = (frag*x)-0.5;
          float x2 = (frag*(x+1))-0.5;
@@ -349,30 +340,66 @@ static void drawChunk(chunk_t * chunk, double screen_x, double y, double screen_
          float z2 = (frag*(z+1))-0.5;
 
          float * mesh = chunk->mesh;
+         vtx norm;
+         norm = chunk->normals[(z * (chunk_res_verts)) + x];
+         glNormal3f(norm.x, norm.y, norm.z);
+         glVertex3f(x1,mesh[(z * (chunk_res_verts)) + x],z1);
 
-         glVertex3f(x1,mesh[(z * (chunk_res + 1)) + x],z1);
-         glVertex3f(x1,mesh[((z+1) * (chunk_res + 1)) + x],z2);
-         glVertex3f(x2,mesh[((z+1) * (chunk_res + 1)) + (x+1)],z2);
-         glVertex3f(x2,mesh[(z * (chunk_res + 1)) + (x+1)],z1);
+         norm = chunk->normals[((z+1) * (chunk_res_verts)) + x];
+         glNormal3f(norm.x, norm.y, norm.z);
+         glVertex3f(x1,mesh[((z+1) * (chunk_res_verts)) + x],z2);
+
+         norm = chunk->normals[((z+1) * (chunk_res_verts)) + (x+1)];
+         glNormal3f(norm.x, norm.y, norm.z);
+         glVertex3f(x2,mesh[((z+1) * (chunk_res_verts)) + (x+1)],z2);
+
+         norm = chunk->normals[(z * (chunk_res_verts)) + (x+1)];
+         glNormal3f(norm.x, norm.y, norm.z);
+         glVertex3f(x2,mesh[(z * (chunk_res_verts)) + (x+1)],z1);
       }
    glEnd();
-
    glPopMatrix();
 }
 
+static void Vertex(double th,double ph)
+{
+   double x = Sin(th)*Cos(ph);
+   double y = Cos(th)*Cos(ph);
+   double z =         Sin(ph);
+   //  For a sphere at the origin, the position
+   //  and normal vectors are the same
+   glNormal3d(x,y,z);
+   glVertex3d(x,y,z);
+}
 
-
-
-
-
-
-
-
-
-
-
-
-
+static void ball(double x,double y,double z,double r)
+{
+   //  Save transformation
+   glPushMatrix();
+   //  Offset, scale and rotate
+   glTranslated(x,y,z);
+   glScaled(r,r,r);
+   //  White ball with yellow specular
+   float yellow[]   = {1.0,1.0,0.0,1.0};
+   float Emission[] = {0.0,0.0,0.01*emission,1.0};
+   glColor3f(1,1,1);
+   glMaterialf(GL_FRONT,GL_SHININESS,shiny);
+   glMaterialfv(GL_FRONT,GL_SPECULAR,yellow);
+   glMaterialfv(GL_FRONT,GL_EMISSION,Emission);
+   //  Bands of latitude
+   for (int ph=-90;ph<90;ph+=inc)
+   {
+      glBegin(GL_QUAD_STRIP);
+      for (int th=0;th<=360;th+=2*inc)
+      {
+         Vertex(th,ph);
+         Vertex(th,ph+inc);
+      }
+      glEnd();
+   }
+   //  Undo transofrmations
+   glPopMatrix();
+}
 
 
 
@@ -411,7 +438,65 @@ void display()
 
    glShadeModel(GL_SMOOTH);
 
-   glColor3f(1,1,1);
+      //  Light switch
+   if (light)
+   {
+      //  Translate intensity to color vectors
+      float Ambient[]   = {0.01*ambient ,0.01*ambient ,0.01*ambient ,1.0};
+      float Diffuse[]   = {0.01*diffuse ,0.01*diffuse ,0.01*diffuse ,1.0};
+      float Specular[]  = {0.01*specular,0.01*specular,0.01*specular,1.0};
+      //  Light position
+      float Position[]  = {0.0,distance*Sin(zh),distance*Cos(zh),0.0};
+      //  Draw light position as ball (still no lighting here)
+      glColor3f(1,1,1);
+
+      // TODO: draw behind stuff
+      ball(Position[0],Position[1],Position[2] , 100);
+      //  OpenGL should normalize normal vectors
+      glEnable(GL_NORMALIZE);
+      //  Enable lighting
+      glEnable(GL_LIGHTING);
+      //  Location of viewer for specular calculations
+      glLightModeli(GL_LIGHT_MODEL_LOCAL_VIEWER,local);
+      //  glColor sets ambient and diffuse color materials
+      glColorMaterial(GL_FRONT_AND_BACK,GL_AMBIENT_AND_DIFFUSE);
+      glEnable(GL_COLOR_MATERIAL);
+      //  Enable light 0
+      glEnable(GL_LIGHT0);
+      //  Set ambient, diffuse, specular components and position of light 0
+      glLightfv(GL_LIGHT0,GL_AMBIENT ,Ambient);
+      glLightfv(GL_LIGHT0,GL_DIFFUSE ,Diffuse);
+      glLightfv(GL_LIGHT0,GL_SPECULAR,Specular);
+      glLightfv(GL_LIGHT0,GL_POSITION,Position);
+   }
+   else
+      glDisable(GL_LIGHTING);
+   
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
    // for fixed cam, maybe the fmod stuff was good? we didnt have tile updating based on "cam" position at that point
    int render_dist = (int) floor(render_dist_dbl);
@@ -435,14 +520,15 @@ void display()
          int chunk_world_x = (int) (floor((cam_x + half_chunk_size) / chunk_size) + x_chunk);
          int chunk_world_z = (int) (floor((cam_z + half_chunk_size) / chunk_size) + z_chunk);
 
-         double x_val = sin((chunk_world_x / 100.1) + 1) / 2.0;
-         double z_val = sin((chunk_world_z / 100.0) + 1) / 2.0;
+         double x_val = sin((chunk_world_x * 5.0) + 1) / 2.0;
+         double z_val = cos((chunk_world_z * 2.5) + 1) / 2.0;
 
          if((adjusted_x + adjusted_z) % 2)
             glColor3f(1-x_val,1-z_val,1);
          else
             glColor3f(x_val,z_val,0);
 
+         glColor3f(0.245, 0.650, 0.208);
 
          chunk_t * chunk = malloc(sizeof(chunk_t));
          initChunk(chunk);
@@ -459,7 +545,7 @@ void display()
          drawChunk(
                chunk,
                x_chunk * chunk_size + amod(chunk_off_x * chunk_size - cam_x, chunk_size, half_chunk_size),
-               cam_y_offset,
+               0,
                z_chunk * chunk_size + amod(chunk_off_z * chunk_size - cam_z, chunk_size, half_chunk_size),
                chunk_world_x,
                chunk_world_z
@@ -468,6 +554,29 @@ void display()
       }
    }
 
+   // draw waterline
+   // Enable blending
+   glEnable(GL_BLEND);
+   // Set the blending function
+   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+   float center_x = amod(chunk_off_x * chunk_size - cam_x, chunk_size, half_chunk_size);
+   float center_z = amod(chunk_off_z * chunk_size - cam_z, chunk_size, half_chunk_size);
+   int it_z[] = {-1,-1,+1,+1};
+   int it_x[] = {-1,+1,+1,-1};
+   glColor4f(0.0,0.0,1.0,0.5);
+   glNormal3f(0.0,1.0,0.0);
+   glBegin(GL_QUADS);
+   for(int i = 0; i < 4; i++)
+   {
+      float x = center_x + (it_x[i] * (chunk_size * ((render_dist*2)+1) / 2.0));
+      float z = center_z + (it_z[i] * (chunk_size * ((render_dist*2)+1) / 2.0));
+      glVertex3f(x, water_level, z);
+   }
+   glEnd();
+
+   glDisable(GL_BLEND);
+
+   // draw "player"
    glColor3f(1,0,0);
    cube(0, 0, 0, .25, .25, .25, 0, 0, 0);
 
@@ -490,9 +599,8 @@ void display()
 
 void idle()
 {
-   //  Elapsed time in seconds
-   double t = glutGet(GLUT_ELAPSED_TIME)/1000.0;
-
+   double t = glutGet(GLUT_ELAPSED_TIME) / 100.0;
+   zh = fmod(t,210.0)-15;
    //  Tell GLUT it is necessary to redisplay the scene
    glutPostRedisplay();
 }
@@ -542,8 +650,8 @@ int main(int argc,char* argv[])
    //  Request double buffered, true color window with Z buffering at 600x600
    glutInitDisplayMode(GLUT_RGB | GLUT_DEPTH | GLUT_DOUBLE | GLUT_MULTISAMPLE);
    // glutSetOption(GLUT_MULTISAMPLE, 4);
-   glutInitWindowSize(400,400);
-   glutCreateWindow("Lighting");
+   glutInitWindowSize(600,600);
+   glutCreateWindow("Landscapes!");
 #ifdef USEGLEW
    //  Initialize GLEW
    if (glewInit()!=GLEW_OK) Fatal("Error initializing GLEW\n");
