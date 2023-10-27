@@ -1,6 +1,5 @@
 #include <math.h>
 
-
 #define STB_PERLIN_IMPLEMENTATION
 #include "stb_perlin.h"
 #include "CSCIx229.h"
@@ -22,9 +21,15 @@ struct param
    double max;
 };
 
+typedef struct bundle
+{
+   float mesh;
+   vtx normal;
+} bundle;
+
 typedef struct chunk_t
 {
-   int id_x, id_y;
+   int id_x, id_z;
    int hash;
    // combine for spacial locality reasons? idk man i just work here
    float * mesh;
@@ -32,6 +37,16 @@ typedef struct chunk_t
    // TODO
    // clutter stuff
 } chunk_t;
+
+#define CHUNK_CACHE_SIZE 128
+chunk_t * chunk_cache[CHUNK_CACHE_SIZE][CHUNK_CACHE_SIZE];
+
+void init()
+{
+   memset(chunk_cache, 0, sizeof(chunk_t *) * CHUNK_CACHE_SIZE * CHUNK_CACHE_SIZE);
+
+   printf("Size of struct bundle: %zu\n", sizeof(bundle));
+}
 
 float smoothstep(float edge0, float edge1, float x) 
 {
@@ -54,8 +69,33 @@ void crossProduct(vtx *v1, vtx *v2, vtx *dest)
    dest->z = v1->x * v2->y - v1->y * v2->x;
 }
 
-void initChunk(chunk_t * chunk)
+void cache_chunk(chunk_t * chunk)
 {
+   int id_x = chunk->id_x;
+   int id_z = chunk->id_z;
+
+   chunk_t ** target = &chunk_cache[imod(id_z, CHUNK_CACHE_SIZE)][imod(id_x, CHUNK_CACHE_SIZE)];
+
+   if(*target) destroyChunk(*target);
+
+   *target = chunk;
+}
+
+chunk_t * get_chunk(int id_x, int id_z)
+{
+   chunk_t * fetched = chunk_cache[imod(id_z, CHUNK_CACHE_SIZE)][imod(id_x, CHUNK_CACHE_SIZE)];
+
+   if(fetched && !(fetched->id_x == id_x && fetched->id_z == id_z))
+      return (chunk_t *) NULL;   
+
+   return fetched;
+}
+
+void initChunk(chunk_t * chunk, int id_x, int id_z)
+{
+   chunk->id_x = id_x;
+   chunk->id_z = id_z;
+
    chunk->mesh = malloc(sizeof(float) * (chunk_res_verts) * (chunk_res_verts));
    chunk->normals = malloc(sizeof(vtx) * chunk_res_verts * chunk_res_verts);
 }
@@ -66,13 +106,14 @@ void destroyChunk(chunk_t * chunk)
    free(chunk->normals);
    free(chunk);
 }
-void generateChunk(chunk_t * chunk, int id_x, int id_z)
+void generateChunk(chunk_t * chunk)
 {
    double frag = 1.0 / chunk_res_faces;
-   float adj_x = id_x * chunk_size;
-   float adj_z = id_z * chunk_size;
+   float adj_x = chunk->id_x * chunk_size;
+   float adj_z = chunk->id_z * chunk_size;
    double half_chunk_size = chunk_size / 2.0;
-
+   
+   // #pragma omp parallel for collapse(2)
    for(int z = 0; z < chunk_res_verts; z++)
       for(int x = 0; x < chunk_res_verts; x++)
       {
@@ -114,6 +155,8 @@ void generateChunk(chunk_t * chunk, int id_x, int id_z)
    // generate quads on per-face basis
    vtx face_norms[chunk_res_faces][chunk_res_faces];
    vtx e1, e2, norm;
+
+   // #pragma omp parallel for collapse(2)
    for(int z = 0; z < chunk_res_faces; z++)
       for(int x = 0; x < chunk_res_faces; x++)
       {
@@ -165,7 +208,7 @@ struct param params[PARAM_CT] = {
    {.name="ambient light", .val=&ambient, .delta=1, .min=0, .max=100},
    {.name="render dist", .val=&render_dist_dbl, .delta=1, .min=0, .max=10000},
    {.name="y offset", .val=&cam_y_offset, .delta=5, .min=-1000, .max=1000},
-   {.name="speed", .val=&cam_speed, .delta=1.0, .min=-.1, .max=100},
+   {.name="speed", .val=&cam_speed, .delta=5.0, .min=-.1, .max=1000},
    {.name="water level", .val=&water_level, .delta=5.0, .min=-1000, .max=1000},
 };
 int cursor = 0;
@@ -185,6 +228,13 @@ double amod(double a, double b, double off)
 double omod(double a, double b)
 {
    double r = fmod(a, b);
+
+   return (r < 0) ? r+b : r;
+}
+
+int imod(int a, int b)
+{
+   int r = a % b;
 
    return (r < 0) ? r+b : r;
 }
@@ -345,31 +395,31 @@ static void drawChunk(chunk_t * chunk, double screen_x, double y, double screen_
 
          // TODO completely rework this color stuff...
 
-         const float sand[] = {0.810, 0.778, 0.429};
-         const float grass[] = {0.245, 0.650, 0.208};
+         // const float sand[] = {0.810, 0.778, 0.429};
+         // const float grass[] = {0.245, 0.650, 0.208};
          
          
          idx = (z * (chunk_res_verts)) + x;
          norm = chunk->normals[idx];
-         glColor3fv((mesh[idx] > water_level + 10) ? grass : sand);
+         // glColor3fv((mesh[idx] > water_level + 10) ? grass : sand);
          glNormal3f(norm.x, norm.y, norm.z);
          glVertex3f(x1,mesh[idx],z1);
 
          idx = ((z+1) * (chunk_res_verts)) + x;
          norm = chunk->normals[idx];
-         glColor3fv((mesh[idx] > water_level + 10) ? grass : sand);
+         // glColor3fv((mesh[idx] > water_level + 10) ? grass : sand);
          glNormal3f(norm.x, norm.y, norm.z);
          glVertex3f(x1,mesh[idx],z2);
 
          idx = ((z+1) * (chunk_res_verts)) + (x+1);
          norm = chunk->normals[idx];
-         glColor3fv((mesh[idx] > water_level + 10) ? grass : sand);
+         // glColor3fv((mesh[idx] > water_level + 10) ? grass : sand);
          glNormal3f(norm.x, norm.y, norm.z);
          glVertex3f(x2,mesh[idx],z2);
 
          idx = (z * (chunk_res_verts)) + (x+1);
          norm = chunk->normals[idx];
-         glColor3fv((mesh[idx] > water_level + 10) ? grass : sand);
+         // glColor3fv((mesh[idx] > water_level + 10) ? grass : sand);
          glNormal3f(norm.x, norm.y, norm.z);
          glVertex3f(x2,mesh[idx],z1);
       }
@@ -536,27 +586,26 @@ void display()
          int chunk_world_x = (int) (floor((cam_x + half_chunk_size) / chunk_size) + x_chunk);
          int chunk_world_z = (int) (floor((cam_z + half_chunk_size) / chunk_size) + z_chunk);
 
-         double x_val = sin((chunk_world_x * 5.0) + 1) / 2.0;
-         double z_val = cos((chunk_world_z * 2.5) + 1) / 2.0;
+         // double x_val = sin((chunk_world_x * 5.0) + 1) / 2.0;
+         // double z_val = cos((chunk_world_z * 2.5) + 1) / 2.0;
 
-         if((adjusted_x + adjusted_z) % 2)
-            glColor3f(1-x_val,1-z_val,1);
-         else
-            glColor3f(x_val,z_val,0);
+         // if((adjusted_x + adjusted_z) % 2)
+         //    glColor3f(1-x_val,1-z_val,1);
+         // else
+         //    glColor3f(x_val,z_val,0);
 
-         // glColor3f(0.245, 0.650, 0.208);
+         glColor3f(0.245, 0.650, 0.208);
 
-         chunk_t * chunk = malloc(sizeof(chunk_t));
-         initChunk(chunk);
-         generateChunk(chunk, chunk_world_x, chunk_world_z);
-         
-         // drawChunk(
-         //       x_chunk * chunk_size + amod(chunk_off_x * chunk_size - cam_x, chunk_size, half_chunk_size),
-         //       cam_y_offset,
-         //       z_chunk * chunk_size + amod(chunk_off_z * chunk_size - cam_z, chunk_size, half_chunk_size),
-         //       chunk_world_x,
-         //       chunk_world_z
-         // );
+         chunk_t * chunk = get_chunk(chunk_world_x, chunk_world_z);
+
+         if(!chunk)
+         {
+            chunk = malloc(sizeof(chunk_t));
+            initChunk(chunk, chunk_world_x, chunk_world_z);
+            generateChunk(chunk);
+            cache_chunk(chunk);
+            // printf("generating chunk.\n");
+         }
 
          drawChunk(
                chunk,
@@ -566,7 +615,7 @@ void display()
                chunk_world_x,
                chunk_world_z
          );
-         destroyChunk(chunk);
+         // destroyChunk(chunk);
       }
    }
 
@@ -681,6 +730,7 @@ int main(int argc,char* argv[])
    glutIdleFunc(idle);
    //  Pass control to GLUT so it can interact with the user
    ErrCheck("init");
+   init();
    glutMainLoop();
    return 0;
 }
