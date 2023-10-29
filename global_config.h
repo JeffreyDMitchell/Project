@@ -2,7 +2,7 @@
 #define _GLOBAL_CONFIG_H_
 
 #define PARAM_CT 5
-#define CHUNK_RES 128
+#define CHUNK_RES 256
 
 // TERRAIN GEN STUFF
 extern double chunk_size;

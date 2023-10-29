@@ -1,10 +1,14 @@
 #include <math.h>
+#include <omp.h>
 
 #define STB_PERLIN_IMPLEMENTATION
 #include "stb_perlin.h"
 #include "CSCIx229.h"
 #include "global_config.h"
 #include "chunk.h"
+
+// TODO remove
+GLfloat fogColor[] = {0.7f, 0.7f, 0.7f, 1.0f};
 
 typedef struct vtx
 {
@@ -30,31 +34,74 @@ typedef struct bundle
 typedef struct chunk_t
 {
    int id_x, id_z;
-   int hash;
+   // int hash;
    // combine for spacial locality reasons? idk man i just work here
-   float * mesh;
-   vtx * normals;
+   // float * mesh;
+   // vtx * normals;
+   bundle * bundles;
    // TODO
    // clutter stuff
 } chunk_t;
 
-#define CHUNK_CACHE_SIZE 128
+#define CHUNK_CACHE_SIZE 64
 chunk_t * chunk_cache[CHUNK_CACHE_SIZE][CHUNK_CACHE_SIZE];
 
 void init()
 {
    memset(chunk_cache, 0, sizeof(chunk_t *) * CHUNK_CACHE_SIZE * CHUNK_CACHE_SIZE);
 
-   printf("Size of struct bundle: %zu\n", sizeof(bundle));
+   glEnable(GL_FOG);
+   glFogfv(GL_FOG_COLOR, fogColor);
+   glFogi(GL_FOG_MODE, GL_LINEAR);
+   glFogf(GL_FOG_START, 4000.0f);  // Where the fog starts
+   glFogf(GL_FOG_END, 5000.0f);   // Where the fog completely obscures objects
+   glHint(GL_FOG_HINT, GL_NICEST);
+   // glFogf (GL_FOG_DENSITY, 0.0005f);
+
+   // printf("Size of struct bundle: %zu\n", sizeof(bundle));
+
+   // printf("starting memory stress test\n");
+   // for(int i = 0; i < CHUNK_CACHE_SIZE; i++)
+   // {
+   //    for(int j = 0; j < CHUNK_CACHE_SIZE; j++)
+   //    {
+   //          chunk_t * chunk = malloc(sizeof(chunk_t));
+   //          initChunk(chunk, i, j);
+   //          generateChunk(chunk);
+   //          cache_chunk(chunk);
+   //    }
+   // }
+   // printf("memory stress test succeeded\n");
 }
 
-float smoothstep(float edge0, float edge1, float x) 
+inline double amod(double a, double b, double off)
+{
+   double r =  fmod(a+off, b);
+
+   return ((r < 0) ? r+b : r)-off;
+}
+
+inline double omod(double a, double b)
+{
+   double r = fmod(a, b);
+
+   return (r < 0) ? r+b : r;
+}
+
+inline int imod(int a, int b)
+{
+   int r = a % b;
+
+   return (r < 0) ? r+b : r;
+}
+
+inline float smoothstep(float edge0, float edge1, float x) 
 {
     float t = fminf(fmaxf((x - edge0) / (edge1 - edge0), 0.0f), 1.0f);
     return t * t * (3.0f - 2.0f * t);
 }
 
-void normalizeVector(vtx *v) 
+inline void normalizeVector(vtx *v) 
 {
    float length = sqrt(v->x * v->x + v->y * v->y + v->z * v->z);
    v->x /= length;
@@ -62,14 +109,33 @@ void normalizeVector(vtx *v)
    v->z /= length;
 }
 
-void crossProduct(vtx *v1, vtx *v2, vtx *dest) 
+inline void crossProduct(vtx *v1, vtx *v2, vtx *dest) 
 {
    dest->x = v1->y * v2->z - v1->z * v2->y;
    dest->y = v1->z * v2->x - v1->x * v2->z;
    dest->z = v1->x * v2->y - v1->y * v2->x;
 }
 
-void cache_chunk(chunk_t * chunk)
+inline void initChunk(chunk_t * chunk, int id_x, int id_z)
+{
+   chunk->id_x = id_x;
+   chunk->id_z = id_z;
+
+   // chunk->mesh = malloc(sizeof(float) * (chunk_res_verts) * (chunk_res_verts));
+   // chunk->normals = malloc(sizeof(vtx) * chunk_res_verts * chunk_res_verts);
+   chunk->bundles = malloc(sizeof(bundle) * chunk_res_verts * chunk_res_verts);
+}
+
+
+inline void destroyChunk(chunk_t * chunk)
+{
+   // free(chunk->mesh);
+   // free(chunk->normals);
+   free(chunk->bundles);
+   free(chunk);
+}
+
+inline void cache_chunk(chunk_t * chunk)
 {
    int id_x = chunk->id_x;
    int id_z = chunk->id_z;
@@ -81,7 +147,7 @@ void cache_chunk(chunk_t * chunk)
    *target = chunk;
 }
 
-chunk_t * get_chunk(int id_x, int id_z)
+inline chunk_t * get_chunk(int id_x, int id_z)
 {
    chunk_t * fetched = chunk_cache[imod(id_z, CHUNK_CACHE_SIZE)][imod(id_x, CHUNK_CACHE_SIZE)];
 
@@ -91,21 +157,6 @@ chunk_t * get_chunk(int id_x, int id_z)
    return fetched;
 }
 
-void initChunk(chunk_t * chunk, int id_x, int id_z)
-{
-   chunk->id_x = id_x;
-   chunk->id_z = id_z;
-
-   chunk->mesh = malloc(sizeof(float) * (chunk_res_verts) * (chunk_res_verts));
-   chunk->normals = malloc(sizeof(vtx) * chunk_res_verts * chunk_res_verts);
-}
-
-void destroyChunk(chunk_t * chunk)
-{
-   free(chunk->mesh);
-   free(chunk->normals);
-   free(chunk);
-}
 void generateChunk(chunk_t * chunk)
 {
    double frag = 1.0 / chunk_res_faces;
@@ -113,7 +164,7 @@ void generateChunk(chunk_t * chunk)
    float adj_z = chunk->id_z * chunk_size;
    double half_chunk_size = chunk_size / 2.0;
    
-   // #pragma omp parallel for collapse(2)
+   #pragma omp parallel for collapse(2)
    for(int z = 0; z < chunk_res_verts; z++)
       for(int x = 0; x < chunk_res_verts; x++)
       {
@@ -122,7 +173,7 @@ void generateChunk(chunk_t * chunk)
 
          float s0 = 1.0f;
          float s1 = 0.1f;
-         float s2 = 0.005f;
+         float s2 = 0.004f;
          float s3 = 0.002f;
          float s4 = 0.0005f;
 
@@ -143,7 +194,7 @@ void generateChunk(chunk_t * chunk)
          float mountains = smoothstep(.5,.95,base) * pow((stb_perlin_noise3(vert_x * s2, 1, vert_z * s2, 0, 0, 0) + 1) / 2.0 * 2, 3) * 100;
          float lakes = smoothstep(0.5,0.95,1.0-base) * (stb_perlin_noise3(vert_x * s3, 2, vert_z * s3, 0, 0, 0) - 1) / 2.0 * 500;
 
-         chunk->mesh[(z * (chunk_res_verts)) + x] = 
+         chunk->bundles[(z * (chunk_res_verts)) + x].mesh = 
             hills + 
             mountains + 
             lakes +
@@ -154,22 +205,21 @@ void generateChunk(chunk_t * chunk)
 
    // generate quads on per-face basis
    vtx face_norms[chunk_res_faces][chunk_res_faces];
-   vtx e1, e2, norm;
-
-   // #pragma omp parallel for collapse(2)
+   #pragma omp parallel for collapse(2)
    for(int z = 0; z < chunk_res_faces; z++)
       for(int x = 0; x < chunk_res_faces; x++)
       {
+         vtx e1, e2, norm;
          // normals must mirror geometry as it would be drawn...
          float x1 = (frag*x)-0.5;
          float x2 = (frag*(x+1))-0.5;
          float z1 = (frag*z)-0.5;
          float z2 = (frag*(z+1))-0.5;
 
-         float * mesh = chunk->mesh;
+         bundle * bundles = chunk->bundles;
 
-         e1.x = 0; e1.z = z2-z1; e1.y = mesh[((z+1) * (chunk_res_verts)) + x] - mesh[(z * (chunk_res_verts)) + x];
-         e2.x = x2-x1; e2.z = 0; e2.y = mesh[((z+1) * (chunk_res_verts)) + (x+1)] - mesh[((z+1) * (chunk_res_verts)) + x];
+         e1.x = 0; e1.z = z2-z1; e1.y = bundles[((z+1) * (chunk_res_verts)) + x].mesh - bundles[(z * (chunk_res_verts)) + x].mesh;
+         e2.x = x2-x1; e2.z = 0; e2.y = bundles[((z+1) * (chunk_res_verts)) + (x+1)].mesh - bundles[((z+1) * (chunk_res_verts)) + x].mesh;
 
          crossProduct(&e1, &e2, &norm);
          // TODO remove
@@ -179,6 +229,7 @@ void generateChunk(chunk_t * chunk)
       }
 
    // coalesce into per-vert normals
+   #pragma omp parallel for collapse(2)
    for(int z = 0; z < chunk_res_verts; z++)
       for(int x = 0; x < chunk_res_verts; x++)
       {
@@ -199,7 +250,7 @@ void generateChunk(chunk_t * chunk)
                norm.z += cur->z;
             }
          normalizeVector(&norm);
-         chunk->normals[(z * (chunk_res_verts)) + x] = norm;
+         chunk->bundles[(z * (chunk_res_verts)) + x].normal = norm;
       }
 
 }
@@ -217,27 +268,6 @@ int cursor = 0;
 #define max(a,b) ((a > b) ? (a) : (b))
 
 unsigned char keys[256];
-
-double amod(double a, double b, double off)
-{
-   double r =  fmod(a+off, b);
-
-   return ((r < 0) ? r+b : r)-off;
-}
-
-double omod(double a, double b)
-{
-   double r = fmod(a, b);
-
-   return (r < 0) ? r+b : r;
-}
-
-int imod(int a, int b)
-{
-   int r = a % b;
-
-   return (r < 0) ? r+b : r;
-}
 
 void key_typed(unsigned char key,int x,int y)
 {
@@ -361,7 +391,7 @@ static void cube(double x,double y, double z,
 }
 
 
-static void drawChunk(chunk_t * chunk, double screen_x, double y, double screen_z, int id_x, int id_z)
+inline void drawChunk(chunk_t * chunk, double screen_x, double y, double screen_z, int id_x, int id_z)
 {
    float white[] = {1,1,1,1};
    float black[] = {0,0,0,1};
@@ -370,26 +400,26 @@ static void drawChunk(chunk_t * chunk, double screen_x, double y, double screen_
 
    // Save transformation
    glPushMatrix();
-   // Offset
-   float adj_x = id_x * chunk_size;
-   float adj_z = id_z * chunk_size;
+   // float adj_x = id_x * chunk_size;
+   // float adj_z = id_z * chunk_size;
    double frag = 1.0 / chunk_res_faces;
 
-   double half_chunk_size = chunk_size / 2.0;
+   // double half_chunk_size = chunk_size / 2.0;
 
    glTranslated(screen_x,y,screen_z);
    glScaled(chunk_size, 1.0, chunk_size);
    
-   glBegin(GL_QUADS);
    for(int z = 0; z < chunk_res_faces; z++)
-      for(int x = 0; x < chunk_res_faces; x++)
+   {
+      glBegin(GL_QUAD_STRIP);
+      for(int x = 0; x < chunk_res_verts; x++)
       {
          float x1 = (frag*x)-0.5;
-         float x2 = (frag*(x+1))-0.5;
+         // float x2 = (frag*(x+1))-0.5;
          float z1 = (frag*z)-0.5;
          float z2 = (frag*(z+1))-0.5;
 
-         float * mesh = chunk->mesh;
+         bundle * bundles = chunk->bundles;
          vtx norm;
          int idx;
 
@@ -400,30 +430,32 @@ static void drawChunk(chunk_t * chunk, double screen_x, double y, double screen_
          
          
          idx = (z * (chunk_res_verts)) + x;
-         norm = chunk->normals[idx];
+         norm = bundles[idx].normal;
          // glColor3fv((mesh[idx] > water_level + 10) ? grass : sand);
          glNormal3f(norm.x, norm.y, norm.z);
-         glVertex3f(x1,mesh[idx],z1);
+         glVertex3f(x1,bundles[idx].mesh,z1);
 
          idx = ((z+1) * (chunk_res_verts)) + x;
-         norm = chunk->normals[idx];
+         norm = bundles[idx].normal;
          // glColor3fv((mesh[idx] > water_level + 10) ? grass : sand);
          glNormal3f(norm.x, norm.y, norm.z);
-         glVertex3f(x1,mesh[idx],z2);
+         glVertex3f(x1,bundles[idx].mesh,z2);
 
-         idx = ((z+1) * (chunk_res_verts)) + (x+1);
-         norm = chunk->normals[idx];
-         // glColor3fv((mesh[idx] > water_level + 10) ? grass : sand);
-         glNormal3f(norm.x, norm.y, norm.z);
-         glVertex3f(x2,mesh[idx],z2);
+         // idx = ((z+1) * (chunk_res_verts)) + (x+1);
+         // norm = chunk->bundles[idx].normal;
+         // // glColor3fv((mesh[idx] > water_level + 10) ? grass : sand);
+         // glNormal3f(norm.x, norm.y, norm.z);
+         // glVertex3f(x2,bundles[idx].mesh,z2);
 
-         idx = (z * (chunk_res_verts)) + (x+1);
-         norm = chunk->normals[idx];
-         // glColor3fv((mesh[idx] > water_level + 10) ? grass : sand);
-         glNormal3f(norm.x, norm.y, norm.z);
-         glVertex3f(x2,mesh[idx],z1);
+         // idx = (z * (chunk_res_verts)) + (x+1);
+         // norm = chunk->bundles[idx].normal;
+         // // glColor3fv((mesh[idx] > water_level + 10) ? grass : sand);
+         // glNormal3f(norm.x, norm.y, norm.z);
+         // glVertex3f(x2,bundles[idx].mesh,z1);
       }
-   glEnd();
+      glEnd();
+   }
+   
    glPopMatrix();
 }
 
@@ -486,7 +518,7 @@ void display()
 {
    processInput();
 
-   glClearColor(ambient / 100.0, ambient / 100.0, ambient / 100.0, 1);
+   glClearColor(fogColor[0], fogColor[1], fogColor[2], 1.0);
    //  Erase the window and the depth buffer
    glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
    //  Enable Z-buffering in OpenGL
@@ -563,7 +595,6 @@ void display()
 
 
 
-
    // for fixed cam, maybe the fmod stuff was good? we didnt have tile updating based on "cam" position at that point
    int render_dist = (int) floor(render_dist_dbl);
 
@@ -574,8 +605,8 @@ void display()
 
    for (int x_chunk = -render_dist; x_chunk <= render_dist; x_chunk++) {
       for (int z_chunk = -render_dist; z_chunk <= render_dist; z_chunk++) {
-         int adjusted_x = x_chunk + chunk_off_x;
-         int adjusted_z = z_chunk + chunk_off_z;
+         // int adjusted_x = x_chunk + chunk_off_x;
+         // int adjusted_z = z_chunk + chunk_off_z;
 
          // if ((adjusted_x + adjusted_z) % 2) {
          //       glColor3f(1, 1, 1);

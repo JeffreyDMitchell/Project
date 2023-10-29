@@ -1,7 +1,7 @@
 #include "global_config.h"
 
 // TERRAIN GEN STUFF
-double chunk_size = 2048;
+double chunk_size = 4096;
 double render_dist_dbl = 1;
 double water_level = -580;
 int chunk_res_verts = CHUNK_RES;
