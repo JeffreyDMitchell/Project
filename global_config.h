@@ -3,6 +3,7 @@
 
 #define PARAM_CT 5
 #define CHUNK_RES 256
+#define CHUNK_CACHE_SIZE 32
 
 // TERRAIN GEN STUFF
 extern double chunk_size;

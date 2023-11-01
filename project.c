@@ -34,28 +34,27 @@ typedef struct bundle
 typedef struct chunk_t
 {
    int id_x, id_z;
-   // int hash;
-   // combine for spacial locality reasons? idk man i just work here
-   // float * mesh;
-   // vtx * normals;
    bundle * bundles;
+   // oh boy
+   // "cpu side" data, will be buffered into GPU at end of chunk generation
+   GLuint vbo_id;
+   GLfloat * vboData;
    // TODO
    // clutter stuff
 } chunk_t;
 
-#define CHUNK_CACHE_SIZE 64
 chunk_t * chunk_cache[CHUNK_CACHE_SIZE][CHUNK_CACHE_SIZE];
 
 void init()
 {
    memset(chunk_cache, 0, sizeof(chunk_t *) * CHUNK_CACHE_SIZE * CHUNK_CACHE_SIZE);
 
-   glEnable(GL_FOG);
-   glFogfv(GL_FOG_COLOR, fogColor);
-   glFogi(GL_FOG_MODE, GL_LINEAR);
-   glFogf(GL_FOG_START, 4000.0f);  // Where the fog starts
-   glFogf(GL_FOG_END, 5000.0f);   // Where the fog completely obscures objects
-   glHint(GL_FOG_HINT, GL_NICEST);
+   // glEnable(GL_FOG);
+   // glFogfv(GL_FOG_COLOR, fogColor);
+   // glFogi(GL_FOG_MODE, GL_LINEAR);
+   // glFogf(GL_FOG_START, 4000.0f);  // Where the fog starts
+   // glFogf(GL_FOG_END, 5000.0f);   // Where the fog completely obscures objects
+   // glHint(GL_FOG_HINT, GL_NICEST);
    // glFogf (GL_FOG_DENSITY, 0.0005f);
 
    // printf("Size of struct bundle: %zu\n", sizeof(bundle));
@@ -72,16 +71,6 @@ void init()
    //    }
    // }
    // printf("memory stress test succeeded\n");
-}
-
-inline void flushChunkCache()
-{
-   for(int i = 0; i < CHUNK_CACHE_SIZE; i++)
-      for(int j = 0; j < CHUNK_CACHE_SIZE; j++)
-         if(chunk_cache[i][j])
-            destroyChunk(chunk_cache[i][j]);
-
-   memset(chunk_cache, 0, sizeof(chunk_t *) * CHUNK_CACHE_SIZE * CHUNK_CACHE_SIZE);
 }
 
 inline double amod(double a, double b, double off)
@@ -128,21 +117,38 @@ inline void crossProduct(vtx *v1, vtx *v2, vtx *dest)
 
 inline void initChunk(chunk_t * chunk, int id_x, int id_z)
 {
+   size_t memsize;
    chunk->id_x = id_x;
    chunk->id_z = id_z;
 
-   // chunk->mesh = malloc(sizeof(float) * (chunk_res_verts) * (chunk_res_verts));
-   // chunk->normals = malloc(sizeof(vtx) * chunk_res_verts * chunk_res_verts);
-   chunk->bundles = malloc(sizeof(bundle) * chunk_res_verts * chunk_res_verts);
+   memsize = sizeof(bundle) * chunk_res_verts * chunk_res_verts;
+   chunk->bundles = malloc(memsize);
+   memset(chunk->bundles, 0, memsize);
+
+   // all GLfloats, 3 for pos, 3 for norm, 3 for color, entry for all verticies...
+   memsize = sizeof(GLfloat) * (3 + 3 + 3) * 2 * chunk_res_verts * (chunk_res_verts-1);
+   chunk->vboData = malloc(memsize);
+   memset(chunk->vboData, 0, memsize);
 }
 
 
 inline void destroyChunk(chunk_t * chunk)
 {
-   // free(chunk->mesh);
-   // free(chunk->normals);
+   glDeleteBuffers(1, &(chunk->vbo_id));
+
    free(chunk->bundles);
+   free(chunk->vboData);
    free(chunk);
+}
+
+inline void flushChunkCache()
+{
+   for(int i = 0; i < CHUNK_CACHE_SIZE; i++)
+      for(int j = 0; j < CHUNK_CACHE_SIZE; j++)
+         if(chunk_cache[i][j])
+            destroyChunk(chunk_cache[i][j]);
+
+   memset(chunk_cache, 0, sizeof(chunk_t *) * CHUNK_CACHE_SIZE * CHUNK_CACHE_SIZE);
 }
 
 inline void cache_chunk(chunk_t * chunk)
@@ -263,6 +269,76 @@ void generateChunk(chunk_t * chunk)
          chunk->bundles[(z * (chunk_res_verts)) + x].normal = norm;
       }
 
+   // assemble vbo data!
+   /*
+   A--C--E
+   |  |  |
+   B--D--F
+   */
+  GLfloat * vdat = chunk->vboData;
+  bundle * bdls = chunk->bundles;
+  int it = 0;
+  int dat_size = (3 + 3 + 3);
+   for(int z = 0; z < chunk_res_verts-1; z++)
+      for(int x = 0; x < chunk_res_verts; x++)
+      {
+         bundle * bdl1 = &bdls[(z * (chunk_res_verts)) + x];
+         float x1 = (frag*x)-0.5;
+         float y1 = bdl1->mesh;
+         float z1 = (frag*z)-0.5;
+
+         bundle * bdl2 = &bdls[((z+1) * (chunk_res_verts)) + x];
+         float x2 = x1;
+         float y2 = bdl2->mesh;
+         float z2 = (frag*(z+1))-0.5;
+
+         // considering vertices in pairs
+         int cursor = dat_size * 2 * it;
+         // TODO loop this
+
+         // bundle A
+         // geom
+         vdat[cursor+0] = x1;
+         vdat[cursor+1] = y1;
+         vdat[cursor+2] = z1;
+         // norm
+         vdat[cursor+3] = bdl1->normal.x;
+         vdat[cursor+4] = bdl1->normal.y;
+         vdat[cursor+5] = bdl1->normal.z;
+         // color
+         vdat[cursor+6] = 0.245f;
+         vdat[cursor+7] = 0.650f;
+         vdat[cursor+8] = 0.208f;
+
+         cursor += dat_size;
+
+         // bundle B
+         vdat[cursor+0] = x2;
+         vdat[cursor+1] = y2;
+         vdat[cursor+2] = z2;
+         // norm
+         vdat[cursor+3] = bdl2->normal.x;
+         vdat[cursor+4] = bdl2->normal.y;
+         vdat[cursor+5] = bdl2->normal.z;
+         // color
+         vdat[cursor+6] = 0.245f;
+         vdat[cursor+7] = 0.650f;
+         vdat[cursor+8] = 0.208f;
+
+
+         it++;
+      }
+
+   glGenBuffers(1, &(chunk->vbo_id));
+   glBindBuffer(GL_ARRAY_BUFFER, chunk->vbo_id);
+   glBufferData(
+      GL_ARRAY_BUFFER, 
+      (sizeof(GLfloat) * (3 + 3 + 3) * 2 * chunk_res_verts * (chunk_res_verts-1)), 
+      chunk->vboData, 
+      GL_STATIC_DRAW
+      );
+   glBindBuffer(GL_ARRAY_BUFFER, 0);
+   
 }
 
 struct param params[PARAM_CT] = {
@@ -401,7 +477,7 @@ static void cube(double x,double y, double z,
 }
 
 
-inline void drawChunk(chunk_t * chunk, double screen_x, double y, double screen_z, int id_x, int id_z)
+inline void drawChunkCPU(chunk_t * chunk, double screen_x, double y, double screen_z, int id_x, int id_z)
 {
    float white[] = {1,1,1,1};
    float black[] = {0,0,0,1};
@@ -410,16 +486,13 @@ inline void drawChunk(chunk_t * chunk, double screen_x, double y, double screen_
 
    // Save transformation
    glPushMatrix();
-   // float adj_x = id_x * chunk_size;
-   // float adj_z = id_z * chunk_size;
-   double frag = 1.0 / chunk_res_faces;
 
-   // double half_chunk_size = chunk_size / 2.0;
+   double frag = 1.0 / chunk_res_faces;
 
    glTranslated(screen_x,y,screen_z);
    glScaled(chunk_size, 1.0, chunk_size);
    
-   for(int z = 0; z < chunk_res_faces; z++)
+   for(int z = 0; z < chunk_res_verts-1; z++)
    {
       glBegin(GL_QUAD_STRIP);
       for(int x = 0; x < chunk_res_verts; x++)
@@ -433,12 +506,6 @@ inline void drawChunk(chunk_t * chunk, double screen_x, double y, double screen_
          vtx norm;
          int idx;
 
-         // TODO completely rework this color stuff...
-
-         // const float sand[] = {0.810, 0.778, 0.429};
-         // const float grass[] = {0.245, 0.650, 0.208};
-         
-         
          idx = (z * (chunk_res_verts)) + x;
          norm = bundles[idx].normal;
          // glColor3fv((mesh[idx] > water_level + 10) ? grass : sand);
@@ -450,21 +517,58 @@ inline void drawChunk(chunk_t * chunk, double screen_x, double y, double screen_
          // glColor3fv((mesh[idx] > water_level + 10) ? grass : sand);
          glNormal3f(norm.x, norm.y, norm.z);
          glVertex3f(x1,bundles[idx].mesh,z2);
-
-         // idx = ((z+1) * (chunk_res_verts)) + (x+1);
-         // norm = chunk->bundles[idx].normal;
-         // // glColor3fv((mesh[idx] > water_level + 10) ? grass : sand);
-         // glNormal3f(norm.x, norm.y, norm.z);
-         // glVertex3f(x2,bundles[idx].mesh,z2);
-
-         // idx = (z * (chunk_res_verts)) + (x+1);
-         // norm = chunk->bundles[idx].normal;
-         // // glColor3fv((mesh[idx] > water_level + 10) ? grass : sand);
-         // glNormal3f(norm.x, norm.y, norm.z);
-         // glVertex3f(x2,bundles[idx].mesh,z1);
       }
       glEnd();
    }
+   
+   glPopMatrix();
+}
+
+inline void drawChunk(chunk_t * chunk, double screen_x, double y, double screen_z, int id_x, int id_z)
+{
+   float white[] = {1,1,1,1};
+   float black[] = {0,0,0,1};
+   glMaterialfv(GL_FRONT_AND_BACK,GL_SPECULAR,white);
+   glMaterialfv(GL_FRONT_AND_BACK,GL_EMISSION,black);
+
+   // Save transformation
+   glPushMatrix();
+
+   double frag = 1.0 / chunk_res_faces;
+
+   glTranslated(screen_x,y,screen_z);
+   glScaled(chunk_size, 1.0, chunk_size);
+
+   const GLsizei stride = sizeof(GLfloat) * 9; // 3 for position, 3 for normal, 3 for color
+   const GLvoid* vertexOffset = (const GLvoid*)(sizeof(GLfloat) * 0); // offset at the beginning
+   const GLvoid* normalOffset = (const GLvoid*)(sizeof(GLfloat) * 3); // offset after 3 floats of vertex
+   const GLvoid* colorOffset = (const GLvoid*)(sizeof(GLfloat) * 6); // offset after 3 floats of vertex and 3 of normal
+   
+   glBindBuffer(GL_ARRAY_BUFFER, chunk->vbo_id);
+
+   glEnableClientState(GL_VERTEX_ARRAY);
+   glEnableClientState(GL_NORMAL_ARRAY);
+   glEnableClientState(GL_COLOR_ARRAY);
+
+   glVertexPointer(3, GL_FLOAT, stride, vertexOffset);
+   glNormalPointer(GL_FLOAT, stride, normalOffset);
+   glColorPointer(3, GL_FLOAT, stride, colorOffset);   
+
+   for(int strip = 0; strip < chunk_res_faces; strip++)
+   {
+      int verts_per_strip = 2 * chunk_res_verts;
+      glDrawArrays(
+         GL_QUAD_STRIP, 
+         strip * verts_per_strip, 
+         verts_per_strip
+         );
+   }
+
+   glDisableClientState(GL_VERTEX_ARRAY);
+   glDisableClientState(GL_NORMAL_ARRAY);
+   glDisableClientState(GL_COLOR_ARRAY);
+
+   glBindBuffer(GL_ARRAY_BUFFER, 0);
    
    glPopMatrix();
 }
