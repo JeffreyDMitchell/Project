@@ -74,6 +74,16 @@ void init()
    // printf("memory stress test succeeded\n");
 }
 
+inline void flushChunkCache()
+{
+   for(int i = 0; i < CHUNK_CACHE_SIZE; i++)
+      for(int j = 0; j < CHUNK_CACHE_SIZE; j++)
+         if(chunk_cache[i][j])
+            destroyChunk(chunk_cache[i][j]);
+
+   memset(chunk_cache, 0, sizeof(chunk_t *) * CHUNK_CACHE_SIZE * CHUNK_CACHE_SIZE);
+}
+
 inline double amod(double a, double b, double off)
 {
    double r =  fmod(a+off, b);
