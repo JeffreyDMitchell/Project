@@ -3,7 +3,7 @@
 
 #define PARAM_CT 5
 #define CHUNK_RES 256
-#define CHUNK_CACHE_SIZE 32
+#define CHUNK_CACHE_SIZE 64
 
 // TERRAIN GEN STUFF
 extern double chunk_size;
@@ -15,6 +15,7 @@ extern int chunk_res_faces;
 // CAMERA STUFF
 extern double cam_x;
 extern double cam_z;
+extern double cam_y;
 extern double cam_y_offset;
 extern double cam_speed;
 extern float cam_rot_speed;

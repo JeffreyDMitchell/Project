@@ -137,7 +137,7 @@ inline void destroyChunk(chunk_t * chunk)
    glDeleteBuffers(1, &(chunk->vbo_id));
 
    free(chunk->bundles);
-   free(chunk->vboData);
+   // free(chunk->vboData);
    free(chunk);
 }
 
@@ -338,6 +338,9 @@ void generateChunk(chunk_t * chunk)
       GL_STATIC_DRAW
       );
    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+   // TODO if this works just make it local array lol
+   free(chunk->vboData);
    
 }
 
@@ -396,6 +399,9 @@ void processInput()
    if(keys['k']) cam_z+=cam_speed;
    if(keys['j']) cam_x-=cam_speed;
    if(keys['l']) cam_x+=cam_speed;
+
+   if(keys['u']) cam_y-=cam_speed;
+   if(keys['o']) cam_y+=cam_speed;
 
    // bounds checking
    if(ph >= 90) ph = 90;
@@ -755,7 +761,7 @@ void display()
          drawChunk(
                chunk,
                x_chunk * chunk_size + amod(chunk_off_x * chunk_size - cam_x, chunk_size, half_chunk_size),
-               0,
+               -cam_y,
                z_chunk * chunk_size + amod(chunk_off_z * chunk_size - cam_z, chunk_size, half_chunk_size),
                chunk_world_x,
                chunk_world_z
@@ -780,7 +786,7 @@ void display()
    {
       float x = center_x + (it_x[i] * (chunk_size * ((render_dist*2)+1) / 2.0));
       float z = center_z + (it_z[i] * (chunk_size * ((render_dist*2)+1) / 2.0));
-      glVertex3f(x, water_level, z);
+      glVertex3f(x, water_level-cam_y, z);
    }
    glEnd();
 
