@@ -38,7 +38,7 @@ typedef struct chunk_t
    // oh boy
    // "cpu side" data, will be buffered into GPU at end of chunk generation
    GLuint vbo_id;
-   GLfloat * vboData;
+   // GLfloat * vboData;
    // TODO
    // clutter stuff
 } chunk_t;
@@ -49,13 +49,13 @@ void init()
 {
    memset(chunk_cache, 0, sizeof(chunk_t *) * CHUNK_CACHE_SIZE * CHUNK_CACHE_SIZE);
 
-   // glEnable(GL_FOG);
-   // glFogfv(GL_FOG_COLOR, fogColor);
-   // glFogi(GL_FOG_MODE, GL_LINEAR);
-   // glFogf(GL_FOG_START, 4000.0f);  // Where the fog starts
-   // glFogf(GL_FOG_END, 5000.0f);   // Where the fog completely obscures objects
-   // glHint(GL_FOG_HINT, GL_NICEST);
-   // glFogf (GL_FOG_DENSITY, 0.0005f);
+   glEnable(GL_FOG);
+   glFogfv(GL_FOG_COLOR, fogColor);
+   glFogi(GL_FOG_MODE, GL_LINEAR);
+   glHint(GL_FOG_HINT, GL_NICEST);
+   glFogf (GL_FOG_DENSITY, 0.0005f);
+
+   setRenderDist((int) render_dist_dbl);
 
    // printf("Size of struct bundle: %zu\n", sizeof(bundle));
 
@@ -71,6 +71,12 @@ void init()
    //    }
    // }
    // printf("memory stress test succeeded\n");
+}
+
+void setRenderDist(int dist)
+{
+   glFogf(GL_FOG_START, fmax(render_dist_dbl-1, 0) * chunk_size);
+   glFogf(GL_FOG_END, render_dist_dbl * chunk_size);
 }
 
 inline double amod(double a, double b, double off)
@@ -126,9 +132,9 @@ inline void initChunk(chunk_t * chunk, int id_x, int id_z)
    memset(chunk->bundles, 0, memsize);
 
    // all GLfloats, 3 for pos, 3 for norm, 3 for color, entry for all verticies...
-   memsize = sizeof(GLfloat) * (3 + 3 + 3) * 2 * chunk_res_verts * (chunk_res_verts-1);
-   chunk->vboData = malloc(memsize);
-   memset(chunk->vboData, 0, memsize);
+   // memsize = sizeof(GLfloat) * (3 + 3 + 3) * 2 * chunk_res_verts * (chunk_res_verts-1);
+   // chunk->vboData = malloc(memsize);
+   // memset(chunk->vboData, 0, memsize);
 }
 
 
@@ -275,13 +281,15 @@ void generateChunk(chunk_t * chunk)
    |  |  |
    B--D--F
    */
-  GLfloat * vdat = chunk->vboData;
+//   GLfloat * vdat = chunk->vboData;
+   GLfloat vdat[(3 + 3 + 3) * 2 * chunk_res_verts * (chunk_res_verts-1)];
   bundle * bdls = chunk->bundles;
   int it = 0;
   int dat_size = (3 + 3 + 3);
    for(int z = 0; z < chunk_res_verts-1; z++)
       for(int x = 0; x < chunk_res_verts; x++)
       {
+         // TODO: make loop
          bundle * bdl1 = &bdls[(z * (chunk_res_verts)) + x];
          float x1 = (frag*x)-0.5;
          float y1 = bdl1->mesh;
@@ -294,7 +302,6 @@ void generateChunk(chunk_t * chunk)
 
          // considering vertices in pairs
          int cursor = dat_size * 2 * it;
-         // TODO loop this
 
          // bundle A
          // geom
@@ -325,7 +332,6 @@ void generateChunk(chunk_t * chunk)
          vdat[cursor+7] = 0.650f;
          vdat[cursor+8] = 0.208f;
 
-
          it++;
       }
 
@@ -334,14 +340,10 @@ void generateChunk(chunk_t * chunk)
    glBufferData(
       GL_ARRAY_BUFFER, 
       (sizeof(GLfloat) * (3 + 3 + 3) * 2 * chunk_res_verts * (chunk_res_verts-1)), 
-      chunk->vboData, 
+      vdat, 
       GL_STATIC_DRAW
       );
-   glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-   // TODO if this works just make it local array lol
-   free(chunk->vboData);
-   
+   glBindBuffer(GL_ARRAY_BUFFER, 0);   
 }
 
 struct param params[PARAM_CT] = {
@@ -845,6 +847,8 @@ void special(int key,int x,int y)
    if(*params[cursor].val < params[cursor].min) *params[cursor].val = params[cursor].min;
    if(*params[cursor].val > params[cursor].max) *params[cursor].val = params[cursor].max;
 
+   // TODO rework this...
+   setRenderDist((int) render_dist_dbl);
    // Update projection
    Project(fov,asp,dim);
 }
