@@ -1,14 +1,15 @@
 #ifndef _GLOBAL_CONFIG_H_
 #define _GLOBAL_CONFIG_H_
 
-#define PARAM_CT 5
+#define PARAM_CT 3
 #define CHUNK_RES 256
 #define CHUNK_CACHE_SIZE 64
 
 // TERRAIN GEN STUFF
 extern double chunk_size;
-extern double render_dist_dbl;
+// extern double render_dist_dbl;
 extern double water_level;
+extern int render_dist;
 extern int chunk_res_verts;
 extern int chunk_res_faces;
 
@@ -41,5 +42,6 @@ extern int shininess;
 extern float shiny;
 extern float zh;
 extern float ylight;
+extern int fog_enabled;
 
 #endif

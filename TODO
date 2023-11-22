@@ -1,5 +1,23 @@
-LIGHTING, COLORING BASED ON ELEVATION
-CHUNK CACHING
-ASYNC CHUNK GENERATION
-GARBAGE COLLECTION
-ORGANIZE INTO SUB FILES WITHOUT TANKING PERFORMANCE?
+Biomes
+    - coloring
+    - unique terrarin gen
+
+Rework parameter system
+    - varaible type
+        - float
+        - int
+        - boolean
+        - trigger
+    - various callbacks
+        - onDisplay
+        - delta
+        - 
+
+player movement
+    - directional controls
+    - basic flight sim fakery?
+
+basic point based collisions?
+
+clouds
+    - billboarding

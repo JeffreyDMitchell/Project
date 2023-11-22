@@ -25,16 +25,15 @@ CLEAN=rm -f $(EXE) *.o *.a
 endif
 
 # Dependencies
-project.o: project.c CSCIx229.h stb_perlin.h global_config.h
 fatal.o: fatal.c CSCIx229.h
 errcheck.o: errcheck.c CSCIx229.h
 print.o: print.c CSCIx229.h
 loadtexbmp.o: loadtexbmp.c CSCIx229.h
 loadobj.o: loadobj.c CSCIx229.h
 projection.o: projection.c CSCIx229.h
-# My stuff
+
+project.o: project.c CSCIx229.h stb_perlin.h global_config.h graphics_utils.h
 global_config.o: global_config.c global_config.h
-chunk.o: chunk.c chunk.h global_config.h
 
 # Create archive
 CSCIx229.a: fatal.o errcheck.o print.o loadtexbmp.o loadobj.o projection.o
@@ -47,7 +46,7 @@ CSCIx229.a: fatal.o errcheck.o print.o loadtexbmp.o loadobj.o projection.o
 	g++ -c $(CFLG)  $<
 
 # Link
-project:project.o CSCIx229.a chunk.o global_config.o
+project:project.o CSCIx229.a global_config.o
 	gcc $(CFLG) -o $@ $^  $(LIBS)
 
 # Clean

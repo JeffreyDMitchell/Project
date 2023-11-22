@@ -2,8 +2,9 @@
 
 // TERRAIN GEN STUFF
 double chunk_size = 4096;
-double render_dist_dbl = 3;
+// double render_dist_dbl = 3;
 double water_level = -580;
+int render_dist = 3;
 int chunk_res_verts = CHUNK_RES;
 int chunk_res_faces = CHUNK_RES-1;
 
@@ -35,3 +36,4 @@ int shininess =   0;  // Shininess (power of two)
 float shiny   =   1;  // Shininess (value)
 float zh        =  90;  // Light azimuth
 float ylight  =   0;  // Elevation of light
+int fog_enabled = 1;
