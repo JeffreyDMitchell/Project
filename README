@@ -1,30 +1,39 @@
-HOMEWORK 5: LIGHTING
+FINAL PROJECT: PROGRESS UPDATE
 
-Notes:
-    Added lighting to my sword. Diffuse and ambient light contributions can be tweaked in the parameters as described below.
+Instructions:
+Generally, the following commands should be used to compile and run the program:
 
-    Tweak the parameters to change the properties of the sword. Normals are generated dynamically with blade geometry!
+    make clean && make -k && ./project
 
-    Program derived from example 13, provided by professor
+My system has both intel integrated graphics, and a dedicated nvidia GPU. To get openGL to make use of the proper adapter, I also set a few environment variables:
 
-Running the program:
-    makefile produces an executable named "hw5"
-    run with ./hw5
+    __NV_PRIME_RENDER_OFFLOAD=1 __VK_LAYER_NV_optimus=NVIDIA_only __GLX_VENDOR_LIBRARY_NAME=nvidia
+
+Bringing the entire command to:
+
+    make clean && make -j &&__NV_PRIME_RENDER_OFFLOAD=1 __VK_LAYER_NV_optimus=NVIDIA_only __GLX_VENDOR_LIBRARY_NAME=nvidia ./project
+
+NOTICE:
+I only have regular access to a ubuntu system. I cannot guarantee that it will compile or run on Mac OS, as I do not have one to test with. I have used the professors Makefile, but have not paid any special attention to any systems other than linux. If it compiles at all, it will likely run without fast optimization and openmp, meaning performance will be poor. I will try to get my hand on these systems for the final submission.
 
 Program controls:
-    l ------------------- toggle lighting
-    m ------------------- toggle light movement
-    [] ------------------ manually move light (if stopped)
-    WASD ---------------- rotate scene/view
+    eq ------------------ decrease/increase FOV
+    uo ------------------ decrease/increase player height
+    wasd ---------------- rotate scene/view
     Arrow Up/Down ------- select parameters
     Arrow Left/Right ---- modify parameters
 
-Project time:
-    Approx 4hrs
-
-
-ATTRIBUTION:
-
-
-
-make clean && make -j &&__NV_PRIME_RENDER_OFFLOAD=1 __VK_LAYER_NV_optimus=NVIDIA_only __GLX_VENDOR_LIBRARY_NAME=nvidia ./project
+TODO:
+    proper day night cycle
+        stars at night
+        red/orange sunrise sunset
+    clouds
+    ground scatter
+        rocks
+        trees
+    more interesting land generation (in the works, not ready for prime time)
+        biomes
+        coloring
+    player
+        model
+        simple interactions with world

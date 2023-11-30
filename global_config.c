@@ -3,7 +3,7 @@
 // TERRAIN GEN STUFF
 double chunk_size = 4096;
 // double render_dist_dbl = 3;
-double water_level = -580;
+double water_level = -700;
 int render_dist = 3;
 int chunk_res_verts = CHUNK_RES;
 int chunk_res_faces = CHUNK_RES-1;
@@ -12,7 +12,7 @@ int chunk_res_faces = CHUNK_RES-1;
 // CAMERA STUFF
 double cam_x = 0.0001, cam_z = 0.0001, cam_y=0.0001;
 double cam_y_offset = -1000;
-double cam_speed = 10.0;
+double cam_speed = 50.0;
 float cam_rot_speed = 2.0f;
 int th=0;         //  Azimuth of view angle
 int ph=0;         //  Elevation of view angle
@@ -37,3 +37,4 @@ float shiny   =   1;  // Shininess (value)
 float zh        =  90;  // Light azimuth
 float ylight  =   0;  // Elevation of light
 int fog_enabled = 1;
+float time_of_day = 0;

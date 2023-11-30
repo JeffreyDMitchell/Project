@@ -8,13 +8,16 @@
 #ifndef _CHUNK_H_
 #define _CHUNK_H_
 
+#define BIOME_MAP_WIDTH 3
+
 typedef struct bundle
 {
    float mesh;
    vtx normal;
+   float color[3];
 } bundle;
 
-typedef struct chunk_t
+typedef struct chunk
 {
    int id_x, id_z;
    bundle * bundles;
@@ -25,6 +28,92 @@ typedef struct chunk_t
    // TODO
    // clutter stuff
 } chunk_t;
+
+typedef struct biome
+{
+   float (*terrainGen)(struct biome *, double, double);
+   void (*colorGen)(struct biome *, struct color *);
+} biome_t;
+
+
+
+
+
+
+
+
+
+
+// biome definitions
+void testColor1(struct biome * self, struct color color_out)
+{
+   color_out.r = 1.0f;
+   color_out.g = 1.0f;
+   color_out.b = 1.0f;
+}
+void testColor2(struct biome * self, struct color color_out)
+{
+   color_out.r = 0.0f;
+   color_out.g = 0.0f;
+   color_out.b = 0.0f;
+}
+
+
+float testTerrain1(struct biome * self, double x, double z)
+{
+   return 0;
+}
+float testTerrain2(struct biome * self, double x, double z)
+{
+   return 500 * sin(x / 100.0);
+}
+float testTerrain3(struct biome * self, double x, double z)
+{
+   return 500 * sin(z / 100.0);
+}
+float testTerrain4(struct biome * self, double x, double z)
+{
+   return 500 * (sin(x / 1000.0)+sin(z / 1000.0));
+}
+float testTerrain5(struct biome * self, double x, double z)
+{
+   return 500 * pow(sin(x / 1000.0)+sin(z / 1000.0),2);
+}
+float testTerrain6(struct biome * self, double x, double z)
+{
+   return 500 * (sin((x*x + z*z)/ 10000.0));
+}
+float testTerrain7(struct biome * self, double x, double z)
+{
+   return 0;
+}
+float testTerrain8(struct biome * self, double x, double z)
+{
+   return 500.0;
+}
+float testTerrain9(struct biome * self, double x, double z)
+{
+   return -500.0;
+}
+
+
+biome_t b1 = { .terrainGen=testTerrain1, .colorGen=testColor1 };
+biome_t b2 = { .terrainGen=testTerrain2, .colorGen=testColor1 };
+biome_t b3 = { .terrainGen=testTerrain3, .colorGen=testColor1 };
+biome_t b4 = { .terrainGen=testTerrain4, .colorGen=testColor1 };
+biome_t b5 = { .terrainGen=testTerrain5, .colorGen=testColor1 };
+biome_t b6 = { .terrainGen=testTerrain6, .colorGen=testColor1 };
+biome_t b7 = { .terrainGen=testTerrain7, .colorGen=testColor1 };
+biome_t b8 = { .terrainGen=testTerrain8, .colorGen=testColor1 };
+biome_t b9 = { .terrainGen=testTerrain9, .colorGen=testColor1 };
+
+
+biome_t * biome_map[BIOME_MAP_WIDTH][BIOME_MAP_WIDTH] = 
+{
+   {&b1, &b2, &b3},
+   {&b4, &b5, &b6},
+   {&b7, &b8, &b9}
+};
 
 inline void initChunk(chunk_t * chunk, int id_x, int id_z)
 {
@@ -62,7 +151,7 @@ inline void flushChunkCache(chunk_t *chunk_cache[CHUNK_CACHE_SIZE][CHUNK_CACHE_S
    memset(chunk_cache, 0, sizeof(chunk_t *) * CHUNK_CACHE_SIZE * CHUNK_CACHE_SIZE);
 }
 
-inline void cache_chunk(chunk_t * chunk, chunk_t *chunk_cache[CHUNK_CACHE_SIZE][CHUNK_CACHE_SIZE]) 
+inline void cacheChunk(chunk_t * chunk, chunk_t *chunk_cache[CHUNK_CACHE_SIZE][CHUNK_CACHE_SIZE]) 
 {
     int id_x = chunk->id_x;
     int id_z = chunk->id_z;
@@ -74,7 +163,7 @@ inline void cache_chunk(chunk_t * chunk, chunk_t *chunk_cache[CHUNK_CACHE_SIZE][
     *target = chunk;
 }
 
-inline chunk_t * get_chunk(int id_x, int id_z, chunk_t *chunk_cache[CHUNK_CACHE_SIZE][CHUNK_CACHE_SIZE])
+inline chunk_t * getChunk(int id_x, int id_z, chunk_t *chunk_cache[CHUNK_CACHE_SIZE][CHUNK_CACHE_SIZE])
 {
    chunk_t * fetched = chunk_cache[imod(id_z, CHUNK_CACHE_SIZE)][imod(id_x, CHUNK_CACHE_SIZE)];
 
@@ -105,6 +194,9 @@ void generateChunk(chunk_t * chunk)
             float s4 = 0.0005f;
 
             float sbiome = 0.0001f;
+            float s_altitude = 0.00001f;
+
+            float altitude = stb_perlin_noise3(vert_x * s_altitude, 0, vert_z * s_altitude, 0, 0, 0) * 10000.0;
             
             // chunk->mesh[(z * (chunk_res_verts)) + x] = 
             //    // "topography"
@@ -116,18 +208,68 @@ void generateChunk(chunk_t * chunk)
             //    // "biome" (hilly or flat)
             //    * smoothstep(0.05,0.95,stb_perlin_noise3(vert_x * sbiome, 2, vert_z * sbiome, 0, 0, 0) + 1) * 3
             // ;
-            float base = (stb_perlin_noise3(vert_x * s4, 0, vert_z * s4, 0, 0, 0) + 1) / 2.0;
-            float hills = base * 1000;
-            float mountains = smoothstep(.5,.95,base) * pow((stb_perlin_noise3(vert_x * s2, 1, vert_z * s2, 0, 0, 0) + 1) / 2.0 * 2, 3) * 100;
-            float lakes = smoothstep(0.5,0.95,1.0-base) * (stb_perlin_noise3(vert_x * s3, 2, vert_z * s3, 0, 0, 0) - 1) / 2.0 * 500;
+            // MOST RECENT
+            // float base = (stb_perlin_noise3(vert_x * s4, 0, vert_z * s4, 0, 0, 0) + 1) / 2.0;
+            // float hills = base * 1000;
+            // float mountains = smoothstep(.5,.95,base) * pow((stb_perlin_noise3(vert_x * s2, 1, vert_z * s2, 0, 0, 0) + 1) / 2.0 * 2, 3) * 100;
+            // float lakes = smoothstep(0.5,0.95,1.0-base) * (stb_perlin_noise3(vert_x * s3, 2, vert_z * s3, 0, 0, 0) - 1) / 2.0 * 500;
+            
+            // chunk->bundles[(z * (chunk_res_verts)) + x].mesh = 
+            //     hills + 
+            //     mountains + 
+            //     lakes +
+
+            //     cam_y_offset
+            // ;
+
+            // translate x, z to [0-1], [0-1] via noise map to select target within biome map
+            float biome_x = ((stb_perlin_noise3(vert_x * sbiome, -1, vert_z * sbiome, 0, 0, 0) + 1) / 2.0) * BIOME_MAP_WIDTH;
+            float biome_z = ((stb_perlin_noise3(vert_x * sbiome, -1, vert_z * sbiome, 0, 0, 0) + 1) / 2.0) * BIOME_MAP_WIDTH;
+            
+            // iterate over all biomes
+            float sum = 0;
+            float weights[BIOME_MAP_WIDTH][BIOME_MAP_WIDTH];
+            for(int bm_x = 0; bm_x < BIOME_MAP_WIDTH; bm_x++)
+               for(int bm_z = 0; bm_z < BIOME_MAP_WIDTH; bm_z++)
+               {
+                  // find distance (squared cuz why not)
+                  float val = pow(((bm_x+0.5))-(biome_x), 2)+pow(((bm_z+0.5))-(biome_z), 2);
+
+                  // apply "blend function" that will dictate blendiness
+                  val = (1.0 / pow(val+1, 10));
+
+                  weights[bm_z][bm_x] = val;
+                  sum += val;
+               }
+
+            // normalize
+            for(int bm_x = 0; bm_x < BIOME_MAP_WIDTH; bm_x++)
+               for(int bm_z = 0; bm_z < BIOME_MAP_WIDTH; bm_z++)
+                  weights[bm_z][bm_x] /= sum;
+
+            // we have the weights!
+            // run each biome generation functions weighted by above
+            float height = 0;
+            color_t primary = {.r=0, .g=0, .b=0 };
+            color_t secondary = {.r=0, .g=0, .b=0 };
+            for(int bm_x = 0; bm_x < BIOME_MAP_WIDTH; bm_x++)
+               for(int bm_z = 0; bm_z < BIOME_MAP_WIDTH; bm_z++)
+               {
+                  biome_t * cur = biome_map[bm_x][bm_z];
+                  float weight = weights[bm_x][bm_z];
+                  // get landscape height
+                  height += weight * cur->terrainGen(cur, vert_x, vert_z);
+
+                  // get landscape color (c makes this really cringe)
+                  // cur->colorGen(cur, &secondary);
+                  // color_t multiplier = {.r=weight, .g=weight, .b=weight };
+                  // colorAdd(&primary, colorMult(&secondary, &multiplier));
+               }
 
             chunk->bundles[(z * (chunk_res_verts)) + x].mesh = 
-                hills + 
-                mountains + 
-                lakes +
-
-                cam_y_offset
+                height
             ;
+
         }
 
    // generate quads on per-face basis

@@ -11,6 +11,30 @@ typedef struct vtx
    float x,y,z;
 } vtx;
 
+typedef struct color
+{
+   float r,g,b;
+} color_t;
+
+// returns its parameter too, cuz why not lmao
+inline color_t * colorMult(color_t * out, color_t * other)
+{
+   out->r *= other->r;
+   out->g *= other->g;
+   out->b *= other->b;
+
+   return out;
+}
+
+inline color_t * colorAdd(color_t * out, color_t * other)
+{
+   out->r += other->r;
+   out->g += other->g;
+   out->b += other->b;
+
+   return out;
+}
+
 inline double amod(double a, double b, double off)
 {
    double r =  fmod(a+off, b);

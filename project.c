@@ -14,6 +14,7 @@ chunk_t * chunk_cache[CHUNK_CACHE_SIZE][CHUNK_CACHE_SIZE];
 
 void configureFog(int dist)
 {
+   // TODO this is cringe change it up
    if(fog_enabled)
    {
       glEnable(GL_FOG);
@@ -72,7 +73,7 @@ struct param params[PARAM_CT] = {
       .val = &cam_speed,
       .delta.d = 10.0,
       .min.d = 0.0,
-      .max.d = 1000.0,
+      .max.d = 100.0,
       .incr = &doubleIncr,
       .decr = &doubleDecr,
       .toStr = &doubleToStr
@@ -129,7 +130,7 @@ int cursor = 0;
 
 unsigned char keys[256];
 
-void key_typed(unsigned char key,int x,int y)
+void keyTyped(unsigned char key,int x,int y)
 {
 
 }
@@ -138,7 +139,7 @@ void keyboardDown(unsigned char key, int x, int y)
 {
    keys[key] = 1;
 
-   key_typed(key, x , y);
+   keyTyped(key, x , y);
 
    // Reproject
    Project(fov,asp,dim);
@@ -185,16 +186,23 @@ void processInput()
    Project(fov,asp,dim);
 }
 
+double dimmer = 0;
+
 void display()
 {
    processInput();
 
+   fogColor[0] = 1-pow(Cos((zh-270)/2.0), 4);
+   fogColor[1] = 1-pow(Cos((zh-270)/2.0), 2);//pow(Sin((zh-270)/2.0), 4);
+   fogColor[2] = 1-pow(Cos((zh-270)/2.0), 2);
+
+   // dimmer = 1-pow(Cos((zh-270)/2.0), 2);
    glClearColor(fogColor[0], fogColor[1], fogColor[2], 1.0);
+   glFogfv(GL_FOG_COLOR, fogColor);
    //  Erase the window and the depth buffer
    glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
    //  Enable Z-buffering in OpenGL
-   glEnable(GL_DEPTH_TEST);
-   glEnable(GL_MULTISAMPLE);
+
 
    //  Undo previous transformations
    glLoadIdentity();
@@ -206,6 +214,8 @@ void display()
    gluLookAt(Ex,Ey,Ez , 0,0,0 , 0,Cos(ph),0);
 
    glShadeModel(GL_SMOOTH);
+
+   glDisable(GL_DEPTH_TEST);
 
       //  Light switch
    if (light)
@@ -220,7 +230,7 @@ void display()
       glColor3f(1,1,1);
 
       // TODO: draw behind stuff
-      ball(Position[0],Position[1],Position[2] , 100);
+      ball(Position[0],Position[1],Position[2] , 200);
       //  OpenGL should normalize normal vectors
       glEnable(GL_NORMALIZE);
       //  Enable lighting
@@ -241,6 +251,9 @@ void display()
    else
       glDisable(GL_LIGHTING);
 
+   glEnable(GL_DEPTH_TEST);
+   glEnable(GL_MULTISAMPLE);
+
    double half_chunk_size = chunk_size / 2.0;
 
    int chunk_off_x = ceil((cam_x - half_chunk_size) / chunk_size);
@@ -248,6 +261,8 @@ void display()
 
    for (int x_chunk = -render_dist; x_chunk <= render_dist; x_chunk++) {
       for (int z_chunk = -render_dist; z_chunk <= render_dist; z_chunk++) {
+         // if((x_chunk * x_chunk) + (z_chunk * z_chunk) > (render_dist * render_dist)) continue;
+         
          // int adjusted_x = x_chunk + chunk_off_x;
          // int adjusted_z = z_chunk + chunk_off_z;
 
@@ -270,14 +285,14 @@ void display()
 
          glColor3f(0.245, 0.650, 0.208);
 
-         chunk_t * chunk = get_chunk(chunk_world_x, chunk_world_z, chunk_cache);
+         chunk_t * chunk = getChunk(chunk_world_x, chunk_world_z, chunk_cache);
 
          if(!chunk)
          {
             chunk = malloc(sizeof(chunk_t));
             initChunk(chunk, chunk_world_x, chunk_world_z);
             generateChunk(chunk);
-            cache_chunk(chunk, chunk_cache);
+            cacheChunk(chunk, chunk_cache);
             // printf("generating chunk.\n");
          }
 

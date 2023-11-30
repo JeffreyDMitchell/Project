@@ -43,5 +43,6 @@ extern float shiny;
 extern float zh;
 extern float ylight;
 extern int fog_enabled;
+extern float time_of_day;
 
 #endif
