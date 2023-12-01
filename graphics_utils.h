@@ -17,22 +17,45 @@ typedef struct color
 } color_t;
 
 // returns its parameter too, cuz why not lmao
-inline color_t * colorMult(color_t * out, color_t * other)
-{
-   out->r *= other->r;
-   out->g *= other->g;
-   out->b *= other->b;
+// inline color_t * colorMult(color_t * out, color_t * other)
+// {
+//    out->r *= other->r;
+//    out->g *= other->g;
+//    out->b *= other->b;
 
-   return out;
+//    return out;
+// }
+
+// inline color_t * colorAdd(color_t * out, color_t * other)
+// {
+//    out->r += other->r;
+//    out->g += other->g;
+//    out->b += other->b;
+
+//    return out;
+// }
+
+inline color_t colorMult(color_t a, color_t b)
+{
+   a.r *= b.r;
+   a.g *= b.g;
+   a.b *= b.b;
+
+   return a;
 }
 
-inline color_t * colorAdd(color_t * out, color_t * other)
+inline color_t colorAdd(color_t a, color_t b)
 {
-   out->r += other->r;
-   out->g += other->g;
-   out->b += other->b;
+   a.r += b.r;
+   a.g += b.g;
+   a.b += b.b;
 
-   return out;
+   return a;
+}
+
+inline float roundTo(float number, float x) 
+{
+   return round(number / x) * x;
 }
 
 inline double amod(double a, double b, double off)

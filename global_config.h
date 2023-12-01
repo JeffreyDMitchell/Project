@@ -1,9 +1,9 @@
 #ifndef _GLOBAL_CONFIG_H_
 #define _GLOBAL_CONFIG_H_
 
-#define PARAM_CT 3
+#define PARAM_CT 4
 #define CHUNK_RES 256
-#define CHUNK_CACHE_SIZE 64
+#define CHUNK_CACHE_SIZE 32
 
 // TERRAIN GEN STUFF
 extern double chunk_size;

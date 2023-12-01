@@ -79,6 +79,17 @@ struct param params[PARAM_CT] = {
       .toStr = &doubleToStr
    },
    {
+      .name = "water level",
+      .type = DOUBLE,
+      .val = &water_level,
+      .delta.d = 10.0,
+      .min.d = -10000.0,
+      .max.d = 10000.0,
+      .incr = &doubleIncr,
+      .decr = &doubleDecr,
+      .toStr = &doubleToStr
+   },
+   {
       .name = "fog enabled",
       .type = BOOL,
       .val = &fog_enabled,
@@ -222,7 +233,8 @@ void display()
    {
       //  Translate intensity to color vectors
       float Ambient[]   = {0.01*ambient ,0.01*ambient ,0.01*ambient ,1.0};
-      float Diffuse[]   = {0.01*diffuse ,0.01*diffuse ,0.01*diffuse ,1.0};
+      // float Diffuse[]   = {0.01*diffuse ,0.01*diffuse ,0.01*diffuse ,1.0};
+      float Diffuse[]   = {fogColor[0] * 0.5f, fogColor[1] * 0.5f, fogColor[2] * 0.5f ,1.0};
       float Specular[]  = {0.01*specular,0.01*specular,0.01*specular,1.0};
       //  Light position
       float Position[]  = {0.0,distance*Sin(zh),distance*Cos(zh),0.0};
@@ -244,6 +256,7 @@ void display()
       glEnable(GL_LIGHT0);
       //  Set ambient, diffuse, specular components and position of light 0
       glLightfv(GL_LIGHT0,GL_AMBIENT ,Ambient);
+      // maybe cap this? some kind of function
       glLightfv(GL_LIGHT0,GL_DIFFUSE ,Diffuse);
       glLightfv(GL_LIGHT0,GL_SPECULAR,Specular);
       glLightfv(GL_LIGHT0,GL_POSITION,Position);
@@ -356,6 +369,7 @@ void idle()
 {
    double t = glutGet(GLUT_ELAPSED_TIME) / 100.0;
    zh = fmod(t,210.0)-15;
+   // zh = fmod(t,360.0f);
    //  Tell GLUT it is necessary to redisplay the scene
    glutPostRedisplay();
 }
