@@ -1,3 +1,7 @@
+#ifdef USEGLEW
+#include <GL/glew.h>
+#endif
+
 #define STB_PERLIN_IMPLEMENTATION
 #include "stb_perlin.h"
 
@@ -6,7 +10,7 @@
 #include "global_config.h"
 
 #include <float.h>
-#include <GL/glew.h>
+
 
 #ifndef _CHUNK_H_
 #define _CHUNK_H_

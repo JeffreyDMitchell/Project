@@ -1,3 +1,7 @@
+#ifdef USEGLEW
+#include <GL/glew.h>
+#endif
+
 #include <math.h>
 #include <omp.h>
 
@@ -6,7 +10,6 @@
 #include "global_config.h"
 #include "chunk.h"
 #include "parameter.h"
-#include <GL/glew.h>
 
 // TODO remove
 GLfloat fogColor[] = {0.7f, 0.7f, 0.7f, 1.0f};
