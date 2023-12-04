@@ -6,6 +6,7 @@
 #include "global_config.h"
 
 #include <float.h>
+#include <GL/glew.h>
 
 #ifndef _CHUNK_H_
 #define _CHUNK_H_
@@ -195,14 +196,13 @@ biome_t * biome_map[BIOME_MAP_WIDTH][BIOME_MAP_WIDTH] =
 
 inline void initChunk(chunk_t * chunk, int id_x, int id_z)
 {
-   size_t memsize;
    chunk->id_x = id_x;
    chunk->id_z = id_z;
 
    size_t ct = CHUNK_RES * CHUNK_RES;
-   memset(chunk->mesh, 0, sizeof(float) * memsize);
-   memset(chunk->normals, 0, sizeof(vtx) * memsize);
-   memset(chunk->colors, 0, sizeof(color_t) * memsize);
+   memset(chunk->mesh, 0, sizeof(float) * ct);
+   memset(chunk->normals, 0, sizeof(vtx) * ct);
+   memset(chunk->colors, 0, sizeof(color_t) * ct);
 }
 
 inline void destroyChunk(chunk_t * chunk)
@@ -382,7 +382,8 @@ void generateChunk(chunk_t * chunk)
    B--D--F
    */
    // all GLfloats, 3 for pos, 3 for norm, 3 for color, entry for all verticies...
-   GLfloat vdat[(3 + 3 + 3) * 2 * chunk_res_verts * (chunk_res_verts-1)];
+   // GLfloat vdat[(3 + 3 + 3) * 2 * chunk_res_verts * (chunk_res_verts-1)];
+   GLfloat * vdat = (GLfloat *) malloc(sizeof(GLfloat) * (3 + 3 + 3) * 2 * chunk_res_verts * (chunk_res_verts-1));
    // bundle * bdls = chunk->bundles;
    int it = 0;
    int dat_size = (3 + 3 + 3);
@@ -446,6 +447,8 @@ void generateChunk(chunk_t * chunk)
       GL_STATIC_DRAW
       );
    glBindBuffer(GL_ARRAY_BUFFER, 0);   
+
+   free(vdat);
 }
 
 inline void drawChunk(chunk_t * chunk, double screen_x, double y, double screen_z, int id_x, int id_z)

@@ -22,7 +22,7 @@ void type##ToStr(param_t *self, char * str) { \
     snprintf(str, MAX_PARAM_STR, "%s: %"#print_flag, self->name, *(type *)self->val); \
 }
 
-enum param_type { BOOL, INT, LONG, FLOAT, DOUBLE };
+enum param_type { BOOL_T, INT_T, LONG_T, FLOAT_T, DOUBLE_T };
 
 typedef struct param
 {

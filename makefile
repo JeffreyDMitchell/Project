@@ -6,9 +6,9 @@ all: $(EXE)
 
 # Msys/MinGW
 ifeq "$(OS)" "Windows_NT"
-CFLG=-Ofast -Wall -DUSEGLEW
+CFLG=-Ofast -fopenmp -Wall -DUSEGLEW
 LIBS=-lfreeglut -lglew32 -lglu32 -lopengl32 -lm
-CLEAN=rm -f *.exe *.o *.a
+CLEAN=del /Q *.exe *.o *.a
 else
 # OSX
 ifeq "$(shell uname)" "Darwin"

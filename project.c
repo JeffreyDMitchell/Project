@@ -6,6 +6,7 @@
 #include "global_config.h"
 #include "chunk.h"
 #include "parameter.h"
+#include <GL/glew.h>
 
 // TODO remove
 GLfloat fogColor[] = {0.7f, 0.7f, 0.7f, 1.0f};
@@ -58,7 +59,7 @@ void init()
 struct param params[PARAM_CT] = {
    {
       .name = "render distance",
-      .type = INT,
+      .type = INT_T,
       .val = &render_dist,
       .delta.i = 1,
       .min.i = 1,
@@ -69,7 +70,7 @@ struct param params[PARAM_CT] = {
    },
    {
       .name = "speed",
-      .type = DOUBLE,
+      .type = DOUBLE_T,
       .val = &cam_speed,
       .delta.d = 10.0,
       .min.d = 0.0,
@@ -80,7 +81,7 @@ struct param params[PARAM_CT] = {
    },
    {
       .name = "water level",
-      .type = DOUBLE,
+      .type = DOUBLE_T,
       .val = &water_level,
       .delta.d = 10.0,
       .min.d = -10000.0,
@@ -91,7 +92,7 @@ struct param params[PARAM_CT] = {
    },
    {
       .name = "fog enabled",
-      .type = BOOL,
+      .type = BOOL_T,
       .val = &fog_enabled,
       .delta.i = 1,
       .incr = &boolIncr,
