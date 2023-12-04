@@ -1,7 +1,12 @@
-biomes:
+BIOMES:
 snow plains
 plains
 ice mountains large
 mountains
 hills
 volcanos?
+
+OPTIMIZATION:
+switch mesh, norms, colors to 2d array now that not dynamically allocd
+switch to triangle strip, degen tris at ends (one draw call per chunk, plus improved lighting)
+async chunk loading (big)
