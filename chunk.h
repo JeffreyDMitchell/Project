@@ -4,6 +4,7 @@
 #include "graphics_utils.h"
 #include "CSCIx229.h"
 #include "global_config.h"
+#include <float.h>
 
 #ifndef _CHUNK_H_
 #define _CHUNK_H_
@@ -63,7 +64,7 @@ color_t testColor3(struct biome * self, float height)
 
 float testTerrain1(struct biome * self, double x, double z)
 {
-   return 0;
+   return 75.0f;
 }
 float testTerrain2(struct biome * self, double x, double z)
 {
@@ -87,7 +88,7 @@ float testTerrain6(struct biome * self, double x, double z)
 }
 float testTerrain7(struct biome * self, double x, double z)
 {
-   return 0;
+   return 50.0f;
 }
 float testTerrain8(struct biome * self, double x, double z)
 {
@@ -143,11 +144,12 @@ float mesaTerrain(struct biome * self, double x, double z)
    // height += peak - (pow(stb_perlin_ridge_noise3(x * s1, 0, z * s1, 2.0, 0.5, 1.0, 1) * 2, 15) * peak);
 
    height += stb_perlin_noise3(x * s2, 0, z * s2, 0, 0, 0) * 2000.0f;
+   // TODO ICKY MAGIC NUMBER
+   height += 500.0f;
    // lock to flat tops
-   height = roundTo(height, 500.0f);
+   height = roundTo(height, 500.0f)-100.0f;
    // some noise
    height += stb_perlin_noise3(x * s1, 0, z * s1, 0, 0, 0) * 100.0f;
-   
 
    return height;
 }
@@ -176,7 +178,9 @@ float ogTerrain(struct biome * self, double x, double z)
    height += hills;
    height += mountains;
    height += lakes;
-   height += cam_y_offset;
+   // TODO MAGIC NUMBER
+   height += -250.0f;
+   // height += cam_y_offset;
 
    return height;
 }
@@ -189,11 +193,91 @@ color_t ogColor(struct biome * self, float height)
 biome_t og_biome = {.terrainGen=ogTerrain, .colorGen=ogColor };
 // END OG
 
+// BEGIN OCEAN
+float oceanTerrain(struct biome * self, double x, double z)
+{
+   return -100.0f;
+}
+
+color_t oceanColor(struct biome * self, float height)
+{
+   return (color_t) { .r = 0.850f, .g = 0.761f, .b = 0.365f };
+}
+
+biome_t ocean_biome = {.terrainGen=oceanTerrain, .colorGen=oceanColor };
+// END OCEAN
+
+// BEGIN ICEBERGS
+float icebergTerrain(struct biome * self, double x, double z)
+{
+   float s1 = 0.00025f;
+   float s2 = 0.00025f;
+   float shelf = 100.0f;
+
+   float height = 0.0f;
+   // height += pow(stb_perlin_ridge_noise3(x * s, 0, z * s, 2.0, 0.5, 0.5, 1) * 10, 10.0) * -5000.0f;
+
+   // iceberg cut-outs
+   // output from stf func is 0-0.5, but that depends on params.
+   height += shelf - (pow(stb_perlin_ridge_noise3(x * s1, 0, z * s1, 2.0, 0.5, 1.0, 1) * 2, 20) * 5 * shelf); 
+
+   height = smoothMax(height, -100.0f, 10.0f);
+
+   return height;
+}
+
+color_t icebergColor(struct biome * self, float height)
+{
+   return (color_t) { .r = 1.0f, .g = 1.0f, .b = 1.0f};
+}
+
+biome_t iceberg_biome = {.terrainGen=icebergTerrain, .colorGen=icebergColor };
+// END ICEBERGS
 
 
 
 
 
+// BEGIN ICEMTSMALL
+float iceMtSmallTerrain(struct biome * self, double x, double z)
+{
+   float s1 = 0.0005f;
+   float s2 = 0.0001f;
+
+   float snow_drift = 0;
+   snow_drift += 250 - (pow(stb_perlin_noise3(x * s1, 0, z * s1, 10, 0, 0), 1) * 250.0);
+   snow_drift += stb_perlin_ridge_noise3(x * s1, 0, z * s1, 2.0, 0.5, 0.5, 1) * 250;
+
+   float height = 0.0f;
+   height += pow(stb_perlin_fbm_noise3(x*s2, 0, z*s2, 2.0, 0.5, 6)+1, 3) * 500.0f;// + 100.0f;
+   height = smoothMax(height, ((stb_perlin_noise3(x*s2, 0, z*s2, 0, 0, 0) + 1) * 250) + snow_drift, 250.0f);
+   // height = fmax(height, (stb_perlin_noise3(x*s2, 0, z*s2, 0, 0, 0) + 1) * 500);
+   return height;
+}
+
+color_t iceMtSmallColor(struct biome * self, float height)
+{
+   return (color_t) { .r = 1.0f, .g = 1.0f, .b = 1.0f};
+}
+
+biome_t iceMtSmall_biome = {.terrainGen=iceMtSmallTerrain, .colorGen=iceMtSmallColor };
+// END ICEMTSMALL
+
+// BEGIN TEST
+float testTerrain(struct biome * self, double x, double z)
+{
+   float height = 0.0f;
+
+   return height;
+}
+
+color_t testColor(struct biome * self, float height)
+{
+   return (color_t) { .r = 1.0f, .g = 1.0f, .b = 1.0f};
+}
+
+biome_t test_biome = {.terrainGen=testTerrain, .colorGen=testColor };
+// END TEST
 
 
 
@@ -207,7 +291,7 @@ biome_t b7 = { .terrainGen=testTerrain7, .colorGen=testColor3 };
 biome_t b8 = { .terrainGen=testTerrain8, .colorGen=testColor3 };
 biome_t b9 = { .terrainGen=testTerrain9, .colorGen=testColor3 };
 
-#define BIOME_MAP_WIDTH 3
+#define BIOME_MAP_WIDTH 4
 biome_t * biome_map[BIOME_MAP_WIDTH][BIOME_MAP_WIDTH] = 
 // {
 //    {&b1, &b2, &b3},
@@ -215,12 +299,18 @@ biome_t * biome_map[BIOME_MAP_WIDTH][BIOME_MAP_WIDTH] =
 //    {&b7, &b8, &b9}
 // };
 {
-   {&b1, &b2, &b3},
-   {&og_biome, &dunes_biome, &mesa_biome},
-   {&b7, &b8, &b9}
+   { &mesa_biome, &dunes_biome,  &ocean_biome,     &og_biome },
+   { &mesa_biome, &ocean_biome,  &og_biome,        &og_biome },
+   { &dunes_biome,&iceberg_biome,&iceberg_biome,   &iceMtSmall_biome },
+   { &og_biome,   &iceberg_biome,&iceMtSmall_biome,&iceMtSmall_biome }
 };
 // {
-//    {&mesa_biome}
+//    {&ocean_biome, &dunes_biome, &mesa_biome},
+//    {&b1, &og_biome, &iceberg_biome},
+//    {&b7, &iceberg_biome, &iceMtSmall_biome}
+// };
+// {
+//    {&iceberg_biome}
 // };
 
 inline void initChunk(chunk_t * chunk, int id_x, int id_z)
@@ -261,10 +351,7 @@ inline void flushChunkCache(chunk_t *chunk_cache[CHUNK_CACHE_SIZE][CHUNK_CACHE_S
 
 inline void cacheChunk(chunk_t * chunk, chunk_t *chunk_cache[CHUNK_CACHE_SIZE][CHUNK_CACHE_SIZE]) 
 {
-    int id_x = chunk->id_x;
-    int id_z = chunk->id_z;
-
-    chunk_t **target = &chunk_cache[imod(id_z, CHUNK_CACHE_SIZE)][imod(id_x, CHUNK_CACHE_SIZE)];
+    chunk_t **target = &chunk_cache[imod(chunk->id_z, CHUNK_CACHE_SIZE)][imod(chunk->id_x, CHUNK_CACHE_SIZE)];
 
     if(*target) destroyChunk(*target);
 
@@ -280,6 +367,10 @@ inline chunk_t * getChunk(int id_x, int id_z, chunk_t *chunk_cache[CHUNK_CACHE_S
 
    return fetched;
 }
+
+//TODO TEMP
+// float min_val = 10;
+// float max_val = 0;
 
 void generateChunk(chunk_t * chunk)
 {
@@ -301,7 +392,7 @@ void generateChunk(chunk_t * chunk)
          float s3 = 0.002f;
          float s4 = 0.0005f;
 
-         float sbiome = 0.00005f;
+         float sbiome = 0.00005f / (BIOME_MAP_WIDTH);
          float s_altitude = 0.00001f;
 
          float altitude = stb_perlin_noise3(vert_x * s_altitude, 0, vert_z * s_altitude, 0, 0, 0) * 10000.0;
@@ -331,9 +422,24 @@ void generateChunk(chunk_t * chunk)
          // ;
 
          // translate x, z to [0-1], [0-1] via noise map to select target within biome map
-         float biome_x = ((stb_perlin_noise3(vert_x * sbiome, -1, vert_z * sbiome, 0, 0, 0) + 1) / 2.0) * BIOME_MAP_WIDTH;
-         float biome_z = ((stb_perlin_noise3(vert_x * sbiome, -2, vert_z * sbiome, 0, 0, 0) + 1) / 2.0) * BIOME_MAP_WIDTH;
+         // BELOW IS HEAVILY BIASED TOWARDS CENTER OF BIOME MAP
+         // float biome_x = ((stb_perlin_noise3(vert_x * sbiome, -1, vert_z * sbiome, 0, 0, 0) + 1) / 2.0) * BIOME_MAP_WIDTH;
+         // float biome_z = ((stb_perlin_noise3(vert_x * sbiome, -2, vert_z * sbiome, 0, 0, 0) + 1) / 2.0) * BIOME_MAP_WIDTH;
+
+
+         // TODO this is really trash. this is my current solution for mapping noise to fixed range without skew
+         float biome_x = pingPong(fabs(stb_perlin_noise3(vert_x * sbiome, -1, vert_z * sbiome, 0, 0, 0) * (2.0f * BIOME_MAP_WIDTH)), BIOME_MAP_WIDTH);
+         float biome_z = pingPong(fabs(stb_perlin_noise3(vert_x * sbiome, -2, vert_z * sbiome, 0, 0, 0) * (2.0f * BIOME_MAP_WIDTH)), BIOME_MAP_WIDTH);
+
+         // if(biome_x < min_val || biome_x > max_val)
+         // {
+         //    min_val = fmin(min_val, biome_x);
+         //    max_val = fmax(max_val, biome_x);
+         //    printf("min: %f max: %f\n", min_val, max_val);
+         // }
+
          
+
          // iterate over all biomes
          float sum = 0;
          float weights[BIOME_MAP_WIDTH][BIOME_MAP_WIDTH];
@@ -344,7 +450,7 @@ void generateChunk(chunk_t * chunk)
                float val = sqrt(pow(((bm_x+0.5))-(biome_x), 2)+pow(((bm_z+0.5))-(biome_z), 2));
 
                // apply "blend function" that will dictate blendiness
-               val = (1.0 / pow(val+1, 30));
+               val = (1.0 / pow(val+1, 10));
 
                weights[bm_z][bm_x] = val;
                sum += val;

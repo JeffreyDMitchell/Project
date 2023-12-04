@@ -3,7 +3,7 @@
 // TERRAIN GEN STUFF
 double chunk_size = 4096;
 // double render_dist_dbl = 3;
-double water_level = -700;
+double water_level = 0;
 int render_dist = 3;
 int chunk_res_verts = CHUNK_RES;
 int chunk_res_faces = CHUNK_RES-1;
@@ -11,7 +11,7 @@ int chunk_res_faces = CHUNK_RES-1;
 
 // CAMERA STUFF
 double cam_x = 0.0001, cam_z = 0.0001, cam_y=0.0001;
-double cam_y_offset = -1000;
+double cam_y_offset = 0;
 double cam_speed = 50.0;
 float cam_rot_speed = 2.0f;
 int th=0;         //  Azimuth of view angle

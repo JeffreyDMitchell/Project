@@ -35,6 +35,29 @@ typedef struct color
 //    return out;
 // }
 
+inline float pingPong(float value, float max) 
+{
+   float period = 2 * max;
+   float modValue = fmod(value, period);
+
+   if (modValue <= max)
+      return modValue;
+   else
+      return period - modValue;
+}
+
+inline float smoothMin(float a, float b, float k)
+{
+   float h = fmax(k-fabs(a-b), 0) / k;
+   return fmin(a, b) - h*h*h*k*1/6.0;
+}
+
+inline float smoothMax(float a, float b, float k)
+{
+   float h = fmax(k-fabs(a-b), 0) / k;
+   return fmax(a, b) + h*h*h*k*1/6.0;
+}
+
 inline color_t colorMult(color_t a, color_t b)
 {
    a.r *= b.r;
