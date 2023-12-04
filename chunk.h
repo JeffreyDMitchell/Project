@@ -10,19 +10,14 @@
 #ifndef _CHUNK_H_
 #define _CHUNK_H_
 
-typedef struct bundle
-{
-   float mesh;
-   vtx normal;
-   color_t color;
-}
-bundle;
-
 typedef struct chunk
 {
    int id_x, id_z;
-   bundle * bundles;
    GLuint vbo_id;
+
+   float mesh[CHUNK_RES*CHUNK_RES];
+   vtx normals[CHUNK_RES*CHUNK_RES];
+   color_t colors[CHUNK_RES*CHUNK_RES];
 } 
 chunk_t;
 
@@ -204,16 +199,16 @@ inline void initChunk(chunk_t * chunk, int id_x, int id_z)
    chunk->id_x = id_x;
    chunk->id_z = id_z;
 
-   memsize = sizeof(bundle) * chunk_res_verts * chunk_res_verts;
-   chunk->bundles = malloc(memsize);
-   memset(chunk->bundles, 0, memsize);
+   size_t ct = CHUNK_RES * CHUNK_RES;
+   memset(chunk->mesh, 0, sizeof(float) * memsize);
+   memset(chunk->normals, 0, sizeof(vtx) * memsize);
+   memset(chunk->colors, 0, sizeof(color_t) * memsize);
 }
 
 inline void destroyChunk(chunk_t * chunk)
 {
    glDeleteBuffers(1, &(chunk->vbo_id));
 
-   free(chunk->bundles);
    free(chunk);
 }
 
@@ -324,10 +319,9 @@ void generateChunk(chunk_t * chunk)
                primary = colorAdd(primary, colorMult(secondary, multiplier));
             }
 
-         bundle * bund = &chunk->bundles[(z * (chunk_res_verts)) + x];
-
-         bund->mesh = height;
-         bund->color = primary;
+         int idx = (z * (chunk_res_verts)) + x;
+         chunk->mesh[idx] = height;
+         chunk->colors[idx] = primary;
       }
 
    // generate norms on per-face basis
@@ -343,10 +337,12 @@ void generateChunk(chunk_t * chunk)
          float z1 = (frag*z)-0.5;
          float z2 = (frag*(z+1))-0.5;
 
-         bundle * bundles = chunk->bundles;
+         int x0z0 = (z * (chunk_res_verts)) + x;
+         int x0z1 = ((z+1) * (chunk_res_verts)) + x;
+         int x1z1 = ((z+1) * (chunk_res_verts)) + (x+1);
 
-         e1.x = 0; e1.z = z2-z1; e1.y = bundles[((z+1) * (chunk_res_verts)) + x].mesh - bundles[(z * (chunk_res_verts)) + x].mesh;
-         e2.x = x2-x1; e2.z = 0; e2.y = bundles[((z+1) * (chunk_res_verts)) + (x+1)].mesh - bundles[((z+1) * (chunk_res_verts)) + x].mesh;
+         e1.x = 0; e1.z = z2-z1; e1.y = chunk->mesh[x0z1] - chunk->mesh[x0z0];
+         e2.x = x2-x1; e2.z = 0; e2.y = chunk->mesh[x1z1] - chunk->mesh[x0z1];
 
          crossProduct(&e1, &e2, &norm);
          normalizeVector(&norm);
@@ -359,7 +355,7 @@ void generateChunk(chunk_t * chunk)
    for(int z = 0; z < chunk_res_verts; z++)
       for(int x = 0; x < chunk_res_verts; x++)
       {
-         vtx norm = {0.0,0.0,0.0};
+         vtx norm = { 0.0,0.0,0.0 };
 
          for(int z_off = -1; z_off <= 1; z_off++)
             for(int x_off = -1; x_off <= 1; x_off++)
@@ -376,7 +372,7 @@ void generateChunk(chunk_t * chunk)
                norm.z += cur->z;
             }
          normalizeVector(&norm);
-         chunk->bundles[(z * (chunk_res_verts)) + x].normal = norm;
+         chunk->normals[(z * (chunk_res_verts)) + x] = norm;
       }
 
    // assemble vbo data!
@@ -387,21 +383,23 @@ void generateChunk(chunk_t * chunk)
    */
    // all GLfloats, 3 for pos, 3 for norm, 3 for color, entry for all verticies...
    GLfloat vdat[(3 + 3 + 3) * 2 * chunk_res_verts * (chunk_res_verts-1)];
-   bundle * bdls = chunk->bundles;
+   // bundle * bdls = chunk->bundles;
    int it = 0;
    int dat_size = (3 + 3 + 3);
    for(int z = 0; z < chunk_res_verts-1; z++)
       for(int x = 0; x < chunk_res_verts; x++)
       {
          // TODO: make loop
-         bundle * bdl1 = &bdls[(z * (chunk_res_verts)) + x];
+         // bundle * bdl1 = &bdls[(z * (chunk_res_verts)) + x];
+         int idx1 = (z * (chunk_res_verts)) + x;
          float x1 = (frag*x)-0.5;
-         float y1 = bdl1->mesh;
+         float y1 = chunk->mesh[idx1];
          float z1 = (frag*z)-0.5;
 
-         bundle * bdl2 = &bdls[((z+1) * (chunk_res_verts)) + x];
+         // bundle * bdl2 = &bdls[((z+1) * (chunk_res_verts)) + x];
+         int idx2 = ((z+1) * (chunk_res_verts)) + x;
          float x2 = x1;
-         float y2 = bdl2->mesh;
+         float y2 = chunk->mesh[idx2];
          float z2 = (frag*(z+1))-0.5;
 
          // considering vertices in pairs
@@ -413,14 +411,13 @@ void generateChunk(chunk_t * chunk)
          vdat[cursor+1] = y1;
          vdat[cursor+2] = z1;
          // norm
-         vdat[cursor+3] = bdl1->normal.x;
-         vdat[cursor+4] = bdl1->normal.y;
-         vdat[cursor+5] = bdl1->normal.z;
+         vdat[cursor+3] = chunk->normals[idx1].x;
+         vdat[cursor+4] = chunk->normals[idx1].y;
+         vdat[cursor+5] = chunk->normals[idx1].z;
          // color
-
-         vdat[cursor+6] = bdl1->color.r;
-         vdat[cursor+7] = bdl1->color.g;
-         vdat[cursor+8] = bdl1->color.b;
+         vdat[cursor+6] = chunk->colors[idx1].r;
+         vdat[cursor+7] = chunk->colors[idx1].g;
+         vdat[cursor+8] = chunk->colors[idx1].b;
 
          cursor += dat_size;
 
@@ -429,13 +426,13 @@ void generateChunk(chunk_t * chunk)
          vdat[cursor+1] = y2;
          vdat[cursor+2] = z2;
          // norm
-         vdat[cursor+3] = bdl2->normal.x;
-         vdat[cursor+4] = bdl2->normal.y;
-         vdat[cursor+5] = bdl2->normal.z;
+         vdat[cursor+3] = chunk->normals[idx2].x;
+         vdat[cursor+4] = chunk->normals[idx2].y;
+         vdat[cursor+5] = chunk->normals[idx2].z;
          // color
-         vdat[cursor+6] = bdl2->color.r;
-         vdat[cursor+7] = bdl2->color.g;
-         vdat[cursor+8] = bdl2->color.b;
+         vdat[cursor+6] = chunk->colors[idx2].r;
+         vdat[cursor+7] = chunk->colors[idx2].g;
+         vdat[cursor+8] = chunk->colors[idx2].b;
 
          it++;
       }
