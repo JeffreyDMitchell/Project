@@ -498,7 +498,7 @@ inline void drawChunk(chunk_t * chunk, double screen_x, double y, double screen_
          GL_QUAD_STRIP, 
          strip * verts_per_strip, 
          verts_per_strip
-         );
+      );
    }
 
    glDisableClientState(GL_VERTEX_ARRAY);
