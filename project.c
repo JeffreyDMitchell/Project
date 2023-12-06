@@ -1,7 +1,3 @@
-#ifdef USEGLEW
-#include <GL/glew.h>
-#endif
-
 #include <math.h>
 #include <omp.h>
 

@@ -1,7 +1,3 @@
-#ifdef USEGLEW
-#include <GL/glew.h>
-#endif
-
 #define STB_PERLIN_IMPLEMENTATION
 #include "stb_perlin.h"
 
