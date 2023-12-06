@@ -2,4 +2,6 @@
 *.o
 *.a
 *.zip
+*.exe
 project
+final
