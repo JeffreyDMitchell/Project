@@ -60,11 +60,11 @@ float mesaTerrain(struct biome * self, double x, double z)
 
    float height = 0.0f;
 
-   height += stb_perlin_noise3(x * s2, 0, z * s2, 0, 0, 0) * 2000.0f;
+   height += stb_perlin_noise3(x * s2, 0, z * s2, 0, 0, 0) * 1000.0f;
    // TODO ICKY MAGIC NUMBER
    height += 500.0f;
    // lock to flat tops
-   height = roundTo(height, 500.0f)-100.0f;
+   height = roundTo(height, 250.0f)-100.0f;
    // some noise
    height += stb_perlin_noise3(x * s1, 0, z * s1, 0, 0, 0) * 100.0f;
 
@@ -163,14 +163,20 @@ color_t iceMtSmallColor(struct biome * self, float height)
 // BEGIN TEST
 float testTerrain(struct biome * self, double x, double z)
 {
+   float s1 = 0.0001f;
+
    float height = 0.0f;
+   height += (1.0 - (stb_perlin_ridge_noise3(x * s1, 0, z * s1, 2.0, 0.5, 0.5, 1) / 0.15)) * 2000;
+
+   // above waterline
+   height += 50.0f;
 
    return height;
 }
 
 color_t testColor(struct biome * self, float height)
 {
-   return (color_t) { .r = 1.0f, .g = 1.0f, .b = 1.0f};
+   return (color_t) { .r = 1.0f, .g = 1.0f, .b = 1.0f };
 }
 
 biome_t dunes_biome =      { .terrainGen=dunesTerrain,      .colorGen=dunesColor };
@@ -195,7 +201,7 @@ biome_t * biome_map[BIOME_MAP_WIDTH][BIOME_MAP_WIDTH] =
 //    {&b7, &iceberg_biome, &iceMtSmall_biome}
 // };
 // {
-//    {&iceberg_biome}
+//    {&test_biome}
 // };
 
 inline void initChunk(chunk_t * chunk, int id_x, int id_z)
@@ -276,8 +282,8 @@ void generateChunk(chunk_t * chunk)
          // float biome_z = ((stb_perlin_noise3(vert_x * sbiome, -2, vert_z * sbiome, 0, 0, 0) + 1) / 2.0) * BIOME_MAP_WIDTH;
 
          // TODO this is really trash. this is my current solution for mapping noise to fixed range without skew
-         float biome_x = pingPong(fabs(stb_perlin_noise3(vert_x * sbiome, -1, vert_z * sbiome, 0, 0, 0) * (2.0f * BIOME_MAP_WIDTH)), BIOME_MAP_WIDTH);
-         float biome_z = pingPong(fabs(stb_perlin_noise3(vert_x * sbiome, -2, vert_z * sbiome, 0, 0, 0) * (2.0f * BIOME_MAP_WIDTH)), BIOME_MAP_WIDTH);
+         float biome_x = pingPong(fabs(stb_perlin_noise3(vert_x * sbiome, -1, vert_z * sbiome, 0, 0, 0) * (3.0f * BIOME_MAP_WIDTH)), BIOME_MAP_WIDTH);
+         float biome_z = pingPong(fabs(stb_perlin_noise3(vert_x * sbiome, -2, vert_z * sbiome, 0, 0, 0) * (3.0f * BIOME_MAP_WIDTH)), BIOME_MAP_WIDTH);
 
          // iterate over all biomes
          float sum = 0;
