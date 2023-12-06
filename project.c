@@ -1,3 +1,7 @@
+#ifdef USEGLEW
+#include <GL/glew.h>
+#endif
+
 #include <math.h>
 #include <omp.h>
 
@@ -6,7 +10,6 @@
 #include "global_config.h"
 #include "chunk.h"
 #include "parameter.h"
-#include <GL/glew.h>
 
 // TODO remove
 GLfloat fogColor[] = {0.7f, 0.7f, 0.7f, 1.0f};
@@ -238,12 +241,14 @@ void display()
       float Diffuse[]   = {fogColor[0] * 0.5f, fogColor[1] * 0.5f, fogColor[2] * 0.5f ,1.0};
       float Specular[]  = {0.01*specular,0.01*specular,0.01*specular,1.0};
       //  Light position
-      float Position[]  = {0.0,distance*Sin(zh),distance*Cos(zh),0.0};
-      //  Draw light position as ball (still no lighting here)
+      float pos_sun[]  = {0.0,distance*Sin(zh),distance*Cos(zh),0.0};
+      float pos_moon[]  = {0.0,distance*Sin(zh + 180),distance*Cos(zh + 180),0.0};
+      //  Draw light pos_sun as ball (still no lighting here)
       glColor3f(1,1,1);
 
       // TODO: draw behind stuff
-      ball(Position[0],Position[1],Position[2] , 200);
+      ball(pos_sun[0],pos_sun[1],pos_sun[2] , 200);
+      ball(pos_moon[0],pos_moon[1],pos_moon[2] , 150);
       //  OpenGL should normalize normal vectors
       glEnable(GL_NORMALIZE);
       //  Enable lighting
@@ -260,7 +265,7 @@ void display()
       // maybe cap this? some kind of function
       glLightfv(GL_LIGHT0,GL_DIFFUSE ,Diffuse);
       glLightfv(GL_LIGHT0,GL_SPECULAR,Specular);
-      glLightfv(GL_LIGHT0,GL_POSITION,Position);
+      glLightfv(GL_LIGHT0,GL_POSITION,pos_sun);
    }
    else
       glDisable(GL_LIGHTING);

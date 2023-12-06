@@ -11,7 +11,7 @@ My system has both intel integrated graphics, and a dedicated nvidia GPU. To get
 
 Bringing the entire command to:
 
-    make clean && make -j &&__NV_PRIME_RENDER_OFFLOAD=1 __VK_LAYER_NV_optimus=NVIDIA_only __GLX_VENDOR_LIBRARY_NAME=nvidia ./project
+    make clean && make -j && __NV_PRIME_RENDER_OFFLOAD=1 __VK_LAYER_NV_optimus=NVIDIA_only __GLX_VENDOR_LIBRARY_NAME=nvidia ./project
 
 NOTICE:
 I only have regular access to a ubuntu system. I cannot guarantee that it will compile or run on Mac OS, as I do not have one to test with. I have used the professors Makefile, but have not paid any special attention to any systems other than linux. If it compiles at all, it will likely run without fast optimization and openmp, meaning performance will be poor. I will try to get my hand on these systems for the final submission.
