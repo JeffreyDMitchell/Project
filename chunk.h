@@ -106,7 +106,10 @@ color_t ogColor(struct biome * self, float height)
 // BEGIN OCEAN
 float oceanTerrain(struct biome * self, double x, double z)
 {
-   return -100.0f;
+   float height = 0;
+   height += -100.0f;
+
+   return height;
 }
 
 color_t oceanColor(struct biome * self, float height)
@@ -163,15 +166,15 @@ color_t iceMtSmallColor(struct biome * self, float height)
 // BEGIN TEST
 float testTerrain(struct biome * self, double x, double z)
 {
-   float s1 = 0.0001f;
+   // float s1 = 0.0001f;
 
-   float height = 0.0f;
-   height += (1.0 - (stb_perlin_ridge_noise3(x * s1, 0, z * s1, 2.0, 0.5, 0.5, 1) / 0.15)) * 2000;
+   // float height = 0.0f;
+   // height += (1.0 - (stb_perlin_ridge_noise3(x * s1, 0, z * s1, 2.0, 0.5, 0.5, 1) / 0.15)) * 2000;
 
-   // above waterline
-   height += 50.0f;
+   // // above waterline
+   // height += 50.0f;
 
-   return height;
+   return x / (chunk_size);
 }
 
 color_t testColor(struct biome * self, float height)
@@ -201,7 +204,7 @@ biome_t * biome_map[BIOME_MAP_WIDTH][BIOME_MAP_WIDTH] =
 //    {&b7, &iceberg_biome, &iceMtSmall_biome}
 // };
 // {
-//    {&test_biome}
+//    {&ocean_biome}
 // };
 
 inline void initChunk(chunk_t * chunk, int id_x, int id_z)
@@ -265,12 +268,6 @@ void generateChunk(chunk_t * chunk)
          float vert_x = adj_x+(x / (double) chunk_res_faces * chunk_size) - half_chunk_size;
          float vert_z = adj_z+(z / (double) chunk_res_faces * chunk_size) - half_chunk_size;
 
-         float s0 = 1.0f;
-         float s1 = 0.1f;
-         float s2 = 0.004f;
-         float s3 = 0.002f;
-         float s4 = 0.0005f;
-
          float sbiome = 0.00005f / (BIOME_MAP_WIDTH);
          float s_altitude = 0.00001f;
 
@@ -320,7 +317,7 @@ void generateChunk(chunk_t * chunk)
                float weight = weights[bm_x][bm_z];
 
                // get landscape height
-               height += weight * cur->terrainGen(cur, vert_x, vert_z);
+               height += weight * (cur->terrainGen(cur, vert_x, vert_z) / chunk_size);
 
                // TODO maybe do later when we have normal data
                // get landscape color
@@ -357,6 +354,8 @@ void generateChunk(chunk_t * chunk)
          crossProduct(&e1, &e2, &norm);
          normalizeVector(&norm);
 
+         // printf("%f %f %f\n", norm.x, norm.y, norm.z);
+
          face_norms[z][x] = norm;
       }
 
@@ -383,6 +382,7 @@ void generateChunk(chunk_t * chunk)
             }
          normalizeVector(&norm);
          chunk->normals[(z * (chunk_res_verts)) + x] = norm;
+         // printf("%f %f %f\n", norm.x, norm.y, norm.z);
       }
 
    // assemble vbo data!
@@ -474,7 +474,7 @@ inline void drawChunk(chunk_t * chunk, double screen_x, double y, double screen_
    double frag = 1.0 / chunk_res_faces;
 
    glTranslated(screen_x,y,screen_z);
-   glScaled(chunk_size, 1.0, chunk_size);
+   glScaled(chunk_size, chunk_size, chunk_size);
 
    const GLsizei stride = sizeof(GLfloat) * 9; // 3 for position, 3 for normal, 3 for color
    const GLvoid* vertexOffset = (const GLvoid*)(sizeof(GLfloat) * 0); // offset at the beginning

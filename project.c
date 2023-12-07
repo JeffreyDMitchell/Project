@@ -246,9 +246,7 @@ void display()
       //  Draw light pos_sun as ball (still no lighting here)
       glColor3f(1,1,1);
 
-      // TODO: draw behind stuff
       ball(pos_sun[0],pos_sun[1],pos_sun[2] , 200);
-      ball(pos_moon[0],pos_moon[1],pos_moon[2] , 150);
       //  OpenGL should normalize normal vectors
       glEnable(GL_NORMALIZE);
       //  Enable lighting
@@ -266,6 +264,10 @@ void display()
       glLightfv(GL_LIGHT0,GL_DIFFUSE ,Diffuse);
       glLightfv(GL_LIGHT0,GL_SPECULAR,Specular);
       glLightfv(GL_LIGHT0,GL_POSITION,pos_sun);
+
+      // draw moon 
+      // TODO texture
+      ball(pos_moon[0],pos_moon[1],pos_moon[2] , 150);
    }
    else
       glDisable(GL_LIGHTING);
