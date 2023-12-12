@@ -1,9 +1,11 @@
 #ifndef _GLOBAL_CONFIG_H_
 #define _GLOBAL_CONFIG_H_
 
-#define PARAM_CT 4
+#define PARAM_CT 6
 #define CHUNK_RES 256
 #define CHUNK_CACHE_SIZE 32
+
+#define TWO_PI 6.283185307179586
 
 // TERRAIN GEN STUFF
 extern double chunk_size;
@@ -20,14 +22,23 @@ extern double cam_y;
 extern double cam_y_offset;
 extern double cam_speed;
 extern float cam_rot_speed;
-extern int th;
-extern int ph;
+extern float th;
+extern float ph;
 extern int fov;
 extern double asp;
 extern double dim;
+extern double sens;
+// fpv
+// extern vtx cam_pos;
+// extern vtx cam_front;
+// extern vtx cam_up;
+
+// window stuff
+extern int wHeight;
+extern int wWidth;
+extern int cursorLock;
 
 //lighting stuff
-// Light values
 extern int light;
 extern int one;
 extern int distance;

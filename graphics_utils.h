@@ -11,6 +11,8 @@ typedef struct vtx
    float x,y,z;
 } vtx;
 
+vtx VERTICAL = { 0, 1, 0 };
+
 typedef struct color
 {
    float r,g,b;
@@ -102,10 +104,31 @@ inline int imod(int a, int b)
    return (r < 0) ? r+b : r;
 }
 
-inline float smoothstep(float edge0, float edge1, float x)
+float lerp(float a, float b, float t)
 {
-    float t = fminf(fmaxf((x - edge0) / (edge1 - edge0), 0.0f), 1.0f);
+   return (1.0f-t)*a + b*t;
+}
+
+inline color_t colorLerp(color_t a, color_t b, float t)
+{
+   return (color_t) { ((1.0f-t)*a.r + b.r*t), ((1.0f-t)*a.g + b.g*t), ((1.0f-t)*a.b + b.b*t) };
+}
+
+inline float smoothstep(float e0, float e1, float x)
+{
+    float t = fminf(fmaxf((x - e0) / (e1 - e0), 0.0f), 1.0f);
     return t * t * (3.0f - 2.0f * t);
+}
+
+inline color_t colorSmoothstep(float e0, float e1, float x, color_t a, color_t b)
+{
+    float t = fminf(fmaxf((x - e0) / (e1 - e0), 0.0f), 1.0f);
+    return colorLerp(a, b, (t * t * (3.0f - 2.0f * t)));
+}
+
+inline float dot(vtx a, vtx b)
+{
+   return a.x * b.x + a.y * b.y + a.z * b.z;
 }
 
 inline void normalizeVector(vtx *v) 
