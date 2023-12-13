@@ -6,15 +6,12 @@
 
 #define MAX_PARAM_STR 64
 #define DEFINE_FUNCS(type, field, print_flag) \
-void type##Incr(param_t *self) { \
+void type##Incr(param_t *self, int dir) { \
+    if(dir != 1 && dir != -1) printf("illegal dir\n");\
     type * val = (type *)self->val; \
-    *val += self->delta.field; \
+    *val += (self->delta.field * dir); \
     if (*val > self->max.field) \
         *val = self->max.field; \
-} \
-void type##Decr(param_t *self) { \
-    type * val = (type *)self->val; \
-    *val -= self->delta.field; \
     if (*val < self->min.field) \
         *val = self->min.field; \
 } \
@@ -33,9 +30,10 @@ typedef struct param
     void * val;
     union { int i; long l; float f; double d; } delta, min, max;
 
-    void (*incr)(struct param *);
+    void (*incr)(struct param *, int dir);
     void (*decr)(struct param *);
     void (*toStr)(struct param *, char *);
+    void (*onChange)(struct param *);
 } param_t;
 
 // simple cases
@@ -45,8 +43,8 @@ DEFINE_FUNCS(float, f, f);
 DEFINE_FUNCS(double, d, lf);
 
 // special cases
-void boolIncr(param_t * self) { *(int *)self->val = 1; }
-void boolDecr(param_t * self) { *(int *)self->val = 0; }
+void boolIncr(param_t * self, int dir) { *(int *)self->val = (dir > 0); }
+// void boolDecr(param_t * self) { *(int *)self->val = 0; }
 void boolToStr(param_t * self, char * str) { snprintf(str, MAX_PARAM_STR, "%s: %s", self->name, (*(int *)self->val ? "true" : "false")); }
 
 #endif

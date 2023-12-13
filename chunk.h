@@ -26,7 +26,7 @@ typedef struct biome
 {
    float (*terrainGen)(struct biome *, double, double);
    // TODO, look into adding normal (will be expensive...)
-   color_t (*colorGen)(struct biome *, float);
+   color_t (*colorGen)(struct biome *, float, vtx);
 } 
 biome_t;
 
@@ -42,7 +42,7 @@ float dunesTerrain(struct biome * self, double x, double z)
    return height;
 }
 
-color_t dunesColor(struct biome * self, float height)
+color_t dunesColor(struct biome * self, float height, vtx norm)
 {
    return (color_t) { .r = 0.850f, .g = 0.761f, .b = 0.365f};
 }
@@ -67,9 +67,9 @@ float mesaTerrain(struct biome * self, double x, double z)
    return height;
 }
 
-color_t mesaColor(struct biome * self, float height)
+color_t mesaColor(struct biome * self, float height, vtx norm)
 {
-   return (color_t) { .r = 0.850f, .g = 0.761f, .b = 0.365f};
+   return (color_t) { .r = 0.850f, .g = 0.761f, .b = 0.365f };
 }
 
 // BEGIN OG
@@ -94,7 +94,7 @@ float ogTerrain(struct biome * self, double x, double z)
    return height;
 }
 
-color_t ogColor(struct biome * self, float height)
+color_t ogColor(struct biome * self, float height, vtx norm)
 {
    return (color_t) { .r = 0.245f, .g = 0.650f, .b = 0.208f };
 }
@@ -102,7 +102,10 @@ color_t ogColor(struct biome * self, float height)
 // BEGIN OCEAN
 float oceanTerrain(struct biome * self, double x, double z)
 {
-   return -100.0f;
+   float height = 0;
+   height += -100.0f;
+
+   return height;
 }
 
 color_t oceanColor(struct biome * self, float height)
@@ -128,9 +131,14 @@ float icebergTerrain(struct biome * self, double x, double z)
    return height;
 }
 
-color_t icebergColor(struct biome * self, float height)
+color_t icebergColor(struct biome * self, float height, vtx norm)
 {
-   return (color_t) { .r = 1.0f, .g = 1.0f, .b = 1.0f };
+   color_t flat = { 1.0f,1.0f,1.0f };
+   color_t steep = { 0.112, 0.187, 0.860 };
+   float orient = dot(VERTICAL, norm);
+   
+   return colorLerp(steep, flat, orient);
+   // return colorSmoothstep(steep, flat, height);
 }
 
 // BEGIN ICEMTSMALL
@@ -150,27 +158,32 @@ float iceMtSmallTerrain(struct biome * self, double x, double z)
    return height;
 }
 
-color_t iceMtSmallColor(struct biome * self, float height)
+color_t iceMtSmallColor(struct biome * self, float height, vtx norm)
 {
-   return (color_t) { .r = 1.0f, .g = 1.0f, .b = 1.0f };
+   color_t flat = { 1.0f,1.0f,1.0f };
+   color_t steep = { 0.389, 0.409, 0.590 };
+   float orient = dot(VERTICAL, norm);
+   
+   // return colorLerp(steep, flat, orient);
+   return colorSmoothstep(0.6, .95, orient, steep, flat);
 }
 
 
 // BEGIN TEST
 float testTerrain(struct biome * self, double x, double z)
 {
-   float s1 = 0.0001f;
+   // float s1 = 0.0001f;
 
-   float height = 0.0f;
-   height += (1.0 - (stb_perlin_ridge_noise3(x * s1, 0, z * s1, 2.0, 0.5, 0.5, 1) / 0.15)) * 2000;
+   // float height = 0.0f;
+   // height += (1.0 - (stb_perlin_ridge_noise3(x * s1, 0, z * s1, 2.0, 0.5, 0.5, 1) / 0.15)) * 2000;
 
-   // above waterline
-   height += 50.0f;
+   // // above waterline
+   // height += 50.0f;
 
-   return height;
+   return x;
 }
 
-color_t testColor(struct biome * self, float height)
+color_t testColor(struct biome * self, float height, vtx norm)
 {
    return (color_t) { .r = 1.0f, .g = 1.0f, .b = 1.0f };
 }
@@ -254,24 +267,17 @@ void generateChunk(chunk_t * chunk)
    float adj_z = chunk->id_z * chunk_size;
    double half_chunk_size = chunk_size / 2.0;
 
+   // the following approach attempts to limit the number of passes of the data
+   // the trade-off is massively less readable code D:
+   float global_weights[CHUNK_RES][CHUNK_RES][BIOME_MAP_WIDTH][BIOME_MAP_WIDTH];
    #pragma omp parallel for collapse(2)
    for(int z = 0; z < chunk_res_verts; z++)
       for(int x = 0; x < chunk_res_verts; x++)
       {
-         float vert_x = adj_x+(x / (double) chunk_res_faces * chunk_size) - half_chunk_size;
-         float vert_z = adj_z+(z / (double) chunk_res_faces * chunk_size) - half_chunk_size;
+         float vert_x = adj_x + (x / (double) chunk_res_faces * chunk_size) - half_chunk_size;
+         float vert_z = adj_z + (z / (double) chunk_res_faces * chunk_size) - half_chunk_size;
 
-         float s0 = 1.0f;
-         float s1 = 0.1f;
-         float s2 = 0.004f;
-         float s3 = 0.002f;
-         float s4 = 0.0005f;
-
-         float sbiome = 0.00005f / (BIOME_MAP_WIDTH);
-         float s_altitude = 0.00001f;
-
-         float altitude = stb_perlin_noise3(vert_x * s_altitude, 0, vert_z * s_altitude, 0, 0, 0) * 10000.0;
-         
+         float sbiome = 0.00005f / (BIOME_MAP_WIDTH);         
          // translate x, z to [0-1], [0-1] via noise map to select target within biome map
          // BELOW IS HEAVILY BIASED TOWARDS CENTER OF BIOME MAP
          // float biome_x = ((stb_perlin_noise3(vert_x * sbiome, -1, vert_z * sbiome, 0, 0, 0) + 1) / 2.0) * BIOME_MAP_WIDTH;
@@ -283,7 +289,7 @@ void generateChunk(chunk_t * chunk)
 
          // iterate over all biomes
          float sum = 0;
-         float weights[BIOME_MAP_WIDTH][BIOME_MAP_WIDTH];
+         // float weights[BIOME_MAP_WIDTH][BIOME_MAP_WIDTH];
          for(int bm_x = 0; bm_x < BIOME_MAP_WIDTH; bm_x++)
             for(int bm_z = 0; bm_z < BIOME_MAP_WIDTH; bm_z++)
             {
@@ -293,14 +299,14 @@ void generateChunk(chunk_t * chunk)
                // apply "blend function" that will dictate blendiness
                val = (1.0 / pow(val+1, 10));
 
-               weights[bm_z][bm_x] = val;
+               global_weights[z][x][bm_z][bm_x] = val;
                sum += val;
             }
 
          // normalize
          for(int bm_x = 0; bm_x < BIOME_MAP_WIDTH; bm_x++)
             for(int bm_z = 0; bm_z < BIOME_MAP_WIDTH; bm_z++)
-               weights[bm_z][bm_x] /= sum;
+               global_weights[z][x][bm_z][bm_x] /= sum;
 
          // TODO if contribution is under threshold, dont generate to save cpu
          // will have to renormalize to avoid sinking
@@ -313,16 +319,10 @@ void generateChunk(chunk_t * chunk)
             for(int bm_z = 0; bm_z < BIOME_MAP_WIDTH; bm_z++)
             {
                biome_t * cur = biome_map[bm_x][bm_z];
-               float weight = weights[bm_x][bm_z];
+               float weight = global_weights[z][x][bm_x][bm_z];
 
                // get landscape height
-               height += weight * cur->terrainGen(cur, vert_x, vert_z);
-
-               // TODO maybe do later when we have normal data
-               // get landscape color
-               secondary = cur->colorGen(cur, height);
-               color_t multiplier = {.r=weight, .g=weight, .b=weight };
-               primary = colorAdd(primary, colorMult(secondary, multiplier));
+               height += weight * (cur->terrainGen(cur, vert_x, vert_z) / chunk_size);
             }
 
          int idx = (z * (chunk_res_verts)) + x;
@@ -379,6 +379,39 @@ void generateChunk(chunk_t * chunk)
             }
          normalizeVector(&norm);
          chunk->normals[(z * (chunk_res_verts)) + x] = norm;
+      }
+
+   #pragma omp parallel for collapse(2)
+   for(int z = 0; z < chunk_res_verts; z++)
+      for(int x = 0; x < chunk_res_verts; x++)
+      {
+         float vert_x = adj_x+(x / (double) chunk_res_faces * chunk_size) - half_chunk_size;
+         float vert_z = adj_z+(z / (double) chunk_res_faces * chunk_size) - half_chunk_size;
+
+         float sbiome = 0.00005f / (BIOME_MAP_WIDTH);
+         float biome_x = pingPong(fabs(stb_perlin_noise3(vert_x * sbiome, -1, vert_z * sbiome, 0, 0, 0) * (3.0f * BIOME_MAP_WIDTH)), BIOME_MAP_WIDTH);
+         float biome_z = pingPong(fabs(stb_perlin_noise3(vert_x * sbiome, -2, vert_z * sbiome, 0, 0, 0) * (3.0f * BIOME_MAP_WIDTH)), BIOME_MAP_WIDTH);
+
+         // TODO if contribution is under threshold, dont generate to save cpu
+         // will have to renormalize to avoid sinking
+
+         // run each biome generation functions weighted by above
+         int idx = (z * (chunk_res_verts)) + x;
+         float height = chunk->mesh[idx];
+         color_t primary = { .r=0, .g=0, .b=0 };
+         color_t secondary;
+         for(int bm_x = 0; bm_x < BIOME_MAP_WIDTH; bm_x++)
+            for(int bm_z = 0; bm_z < BIOME_MAP_WIDTH; bm_z++)
+            {
+               biome_t * cur = biome_map[bm_x][bm_z];
+               float weight = global_weights[z][x][bm_x][bm_z];
+
+               // get landscape color
+               secondary = cur->colorGen(cur, height, chunk->normals[idx]);
+               color_t multiplier = {.r=weight, .g=weight, .b=weight };
+               primary = colorAdd(primary, colorMult(secondary, multiplier));
+            }
+         chunk->colors[idx] = primary;
       }
 
    // assemble vbo data!
@@ -470,7 +503,7 @@ inline void drawChunk(chunk_t * chunk, double screen_x, double y, double screen_
    double frag = 1.0 / chunk_res_faces;
 
    glTranslated(screen_x,y,screen_z);
-   glScaled(chunk_size, 1.0, chunk_size);
+   glScaled(chunk_size, chunk_size, chunk_size);
 
    const GLsizei stride = sizeof(GLfloat) * 9; // 3 for position, 3 for normal, 3 for color
    const GLvoid* vertexOffset = (const GLvoid*)(sizeof(GLfloat) * 0); // offset at the beginning
@@ -507,3 +540,12 @@ inline void drawChunk(chunk_t * chunk, double screen_x, double y, double screen_
 }
 
 #endif
+
+// applies a provided function to every vertex of a chunk
+void vertexFn(void (*func)(int x, int z, void * arg), void * arg)
+{
+   #pragma omp parallel for collapse(2)
+   for(int z = 0; z < chunk_res_verts; z++)
+      for(int x = 0; x < chunk_res_verts; x++)
+         func(x, z, arg);
+}

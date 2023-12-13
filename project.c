@@ -9,6 +9,10 @@
 
 // TODO remove
 GLfloat fogColor[] = {0.7f, 0.7f, 0.7f, 1.0f};
+int lastX, lastY = 0;
+vtx cam_pos = {0.0f, 0.0f, 10.0f};
+vtx cam_front = {0.0f, 0.0f, -1.0f};
+vtx cam_up = {0.0f, 1.0f, 0.0f};
 
 chunk_t * chunk_cache[CHUNK_CACHE_SIZE][CHUNK_CACHE_SIZE];
 
@@ -20,6 +24,11 @@ void configureFog(int dist)
       glEnable(GL_FOG);
       glFogf(GL_FOG_START, (render_dist-1 > 0 ? render_dist-1 : 0) * chunk_size);
       glFogf(GL_FOG_END, render_dist * chunk_size);
+
+      // glEnable(GL_FOG);
+      // glFogi(GL_FOG_MODE, GL_EXP2);
+      // glFogf(GL_FOG_DENSITY, 0.00005f);
+
    }
    else
    {
@@ -55,6 +64,20 @@ void init()
    // printf("memory stress test succeeded\n");
 }
 
+// custom param functions
+// void cursorLockChange()
+// {
+
+// }
+
+void cursorLockChangeParam(struct param * self)
+{
+   if(*(int *)self->val)
+      glutSetCursor(GLUT_CURSOR_NONE);
+   else
+      glutSetCursor(GLUT_CURSOR_INHERIT);
+}
+
 struct param params[PARAM_CT] = {
    {
       .name = "render distance",
@@ -64,19 +87,19 @@ struct param params[PARAM_CT] = {
       .min.i = 1,
       .max.i = 10,
       .incr = &intIncr,
-      .decr = &intDecr,
-      .toStr = &intToStr
+      .toStr = &intToStr,
+      .onChange = NULL
    },
    {
       .name = "speed",
       .type = DOUBLE_T,
       .val = &cam_speed,
-      .delta.d = 10.0,
+      .delta.d = 5,
       .min.d = 0.0,
       .max.d = 100.0,
       .incr = &doubleIncr,
-      .decr = &doubleDecr,
-      .toStr = &doubleToStr
+      .toStr = &doubleToStr,
+      .onChange = NULL
    },
    {
       .name = "water level",
@@ -86,8 +109,8 @@ struct param params[PARAM_CT] = {
       .min.d = -10000.0,
       .max.d = 10000.0,
       .incr = &doubleIncr,
-      .decr = &doubleDecr,
-      .toStr = &doubleToStr
+      .toStr = &doubleToStr,
+      .onChange = NULL
    },
    {
       .name = "fog enabled",
@@ -95,44 +118,29 @@ struct param params[PARAM_CT] = {
       .val = &fog_enabled,
       .delta.i = 1,
       .incr = &boolIncr,
-      .decr = &boolDecr,
-      .toStr = &boolToStr
+      .toStr = &boolToStr,
+      .onChange = NULL
+   },
+   {
+      .name = "mouse control",
+      .type = BOOL_T,
+      .val = &cursorLock,
+      .delta.i = 1,
+      .incr = &boolIncr,
+      .toStr = &boolToStr,
+      .onChange = &cursorLockChangeParam
+   },
+   {
+      .name = "mouse sensitivity",
+      .type = DOUBLE_T,
+      .val = &sens,
+      .delta.d = 0.5,
+      .min.d = 0.5,
+      .max.d = 10.0,
+      .incr = &doubleIncr,
+      .toStr = &doubleToStr,
+      .onChange = NULL
    }
-   // {
-   //    .name="ambient light",
-   //    .val=&ambient,
-   //    .delta=1,
-   //    .min=0,
-   //    .max=100
-   // },
-   // {
-   //    .name="render dist",
-   //    .val=&render_dist_dbl,
-   //    .delta=1,
-   //    .min=0,
-   //    .max=10000
-   // },
-   // {
-   //    .name="y offset",
-   //    .val=&cam_y_offset,
-   //    .delta=5,
-   //    .min=-1000,
-   //    .max=1000
-   // },
-   // {
-   //    .name="speed",
-   //    .val=&cam_speed,
-   //    .delta=5.0,
-   //    .min=-.1,
-   //    .max=1000
-   // },
-   // {
-   //    .name="water level",
-   //    .val=&water_level,
-   //    .delta=5.0,
-   //    .min=-1000,
-   //    .max=1000
-   // },
 };
 int cursor = 0;
 
@@ -143,7 +151,14 @@ unsigned char keys[256];
 
 void keyTyped(unsigned char key,int x,int y)
 {
-
+   switch(key)
+   {
+      case 27:
+         // repeat garbage
+         cursorLock = 0;
+         glutSetCursor(GLUT_CURSOR_INHERIT);
+      break;
+   }
 }
 
 void keyboardDown(unsigned char key, int x, int y) 
@@ -168,40 +183,156 @@ void keyboardUp(unsigned char key, int x, int y)
    glutPostRedisplay();
 }
 
+void mouseMove(int x, int y)
+{
+   if(!cursorLock) return;
+
+   int cx = wWidth / 2;
+   int cy = wHeight / 2;
+
+   int dx = x - cx;
+   int dy = y - cy;
+
+   if ((dx || dy)) 
+   {
+      ph -= dy * cam_rot_speed * sens * 0.001;
+      th += dx * cam_rot_speed * sens * 0.001;
+      // TODO test on other platforms?
+      glutWarpPointer(cx, cy);
+   }
+}
+
 void processInput() 
 {
-   // bird's eye view cam controls
-   if(keys['w']) ph -= cam_rot_speed;
-   if(keys['s']) ph += cam_rot_speed;
-   if(keys['a']) th -= cam_rot_speed;
-   if(keys['d']) th += cam_rot_speed;
-   if(keys['q']) fov--;
-   if(keys['e']) fov++;
+   // // bird's eye view cam controls
+   // if(keys['i']) ph -= cam_rot_speed;
+   // if(keys['k']) ph += cam_rot_speed;
+   // if(keys['j']) th -= cam_rot_speed;
+   // if(keys['l']) th += cam_rot_speed;
+   // if(keys['[']) fov--;
+   // if(keys[']']) fov++;
 
-   if(keys['i']) cam_z-=cam_speed;
-   if(keys['k']) cam_z+=cam_speed;
-   if(keys['j']) cam_x-=cam_speed;
-   if(keys['l']) cam_x+=cam_speed;
+   // if(keys['w']) cam_pos.z-=cam_speed;
+   // if(keys['s']) cam_pos.z+=cam_speed;
+   // if(keys['a']) cam_pos.x-=cam_speed;
+   // if(keys['d']) cam_pos.x+=cam_speed;
 
-   if(keys['u']) cam_y-=cam_speed;
-   if(keys['o']) cam_y+=cam_speed;
+   // if(keys['q']) cam_pos.y-=cam_speed;
+   // if(keys['e']) cam_pos.y+=cam_speed;
 
-   // bounds checking
-   if(ph >= 90) ph = 90;
-   if(ph <= -90) ph = -90;
-   if(fov >= 80) fov = 80;
-   if(fov <= 20) fov = 20;
-   if(th >= 360) th = 0;
-   if(th < 0) th = 360;
+   // // bounds checking
+   // if(ph >= 90) ph = 90;
+   // if(ph <= -90) ph = -90;
+   // if(fov >= 80) fov = 80;
+   // if(fov <= 20) fov = 20;
+   // if(th >= 360) th = 0;
+   // if(th < 0) th = 360;
    
-   Project(fov,asp,dim);
+   // Project(fov,asp,dim);
+
+   // printf("x %f y %f z %f\n", cam_pos.x, cam_pos.y, cam_pos.z);
+
+   if(keys['w']) 
+   {
+      cam_pos.x += cam_speed * cam_front.x;
+      cam_pos.y += cam_speed * cam_front.y;
+      cam_pos.z += cam_speed * cam_front.z;
+   }
+   if(keys['s']) 
+   {
+      cam_pos.x -= cam_speed * cam_front.x;
+      cam_pos.y -= cam_speed * cam_front.y;
+      cam_pos.z -= cam_speed * cam_front.z;
+   }
+   if(keys['a']) 
+   {
+      vtx cross;
+      crossProduct(&cam_front, &cam_up, &cross);
+      normalizeVector(&cross);
+      cam_pos.x -= cam_speed * cross.x;
+      cam_pos.y -= cam_speed * cross.y;
+      cam_pos.z -= cam_speed * cross.z;
+   }
+   if(keys['d']) 
+   {
+      vtx cross;
+      crossProduct(&cam_front, &cam_up, &cross);
+      normalizeVector(&cross);
+      cam_pos.x += cam_speed * cross.x;
+      cam_pos.y += cam_speed * cross.y;
+      cam_pos.z += cam_speed * cross.z;
+   }
+
+   if(keys['q']) cam_pos.y -= cam_speed;
+   if(keys['e']) cam_pos.y += cam_speed;
+
+   if(keys['i']) ph += cam_rot_speed;
+   if(keys['k']) ph -= cam_rot_speed;
+   if(keys['l']) th += cam_rot_speed;
+   if(keys['j']) th -= cam_rot_speed;
+
+   if(ph > 89.0f) ph = 89.0f;
+   if(ph < -89.0f) ph = -89.0f;
+
+   // GLfloat front[3];
+   cam_front.x = cos(TWO_PI * th/360.0) * cos(TWO_PI * ph/360.0);
+   cam_front.y = sin(TWO_PI * ph/360.0);
+   cam_front.z = sin(TWO_PI * th/360.0) * cos(TWO_PI * ph/360.0);
+   normalizeVector(&cam_front);
 }
 
 double dimmer = 0;
 
+// lol
+void logic()
+{
+   int chunk_x = (int) (floor((cam_pos.x + half_chunk_size) / chunk_size));
+   int chunk_z = (int) (floor((cam_pos.z + half_chunk_size) / chunk_size));
+
+   // printf("getting chunk (%d,%d)\n", chunk_x, chunk_z);
+
+   chunk_t * cur_chunk = getChunk(chunk_x, chunk_z, chunk_cache);
+
+   // collisions
+   if(cur_chunk)
+   {
+      int chunk_off_x = ceil((cam_pos.x - half_chunk_size) / chunk_size);
+      int chunk_off_z = ceil((cam_pos.z - half_chunk_size) / chunk_size);
+
+      float vert_x = amod(chunk_off_x * chunk_size - cam_pos.x, chunk_size, half_chunk_size);
+      float vert_z = amod(chunk_off_z * chunk_size - cam_pos.z, chunk_size, half_chunk_size);
+
+      // maybe reverse this? i did...
+      int idx_x = CHUNK_RES - (((vert_x + half_chunk_size) / chunk_size) * CHUNK_RES) - 1;
+      int idx_z = CHUNK_RES - (((vert_z + half_chunk_size) / chunk_size) * CHUNK_RES) - 1;
+
+
+      // printf("x: %f z: %f\n", vert_x, vert_z);
+      float nearest_height = (cur_chunk->mesh[(idx_z * (chunk_res_verts)) + idx_x]) * chunk_size;
+
+      // for(int i = 0; i < chunk_res_verts; i++)
+      //    for(int j = 0; j < chunk_res_verts; j++)
+      //    {
+      //       printf("%f\n", cur_chunk->mesh[(i * chunk_res_verts) + j]);
+      //    }
+
+      // printf("x: %d z: %d\ty:%f\n", idx_x, idx_z, nearest_height);
+
+      if(cam_pos.y < (float)nearest_height + collision_fudge)
+         cam_pos.y = (float)nearest_height + collision_fudge;
+
+      // printf("%f\n", nearest_height);
+      // find nearest vert
+      // amod();
+      // take mod of where we are
+      // bias halfway into chunk
+   }
+}
+
 void display()
 {
    processInput();
+   logic();
 
    fogColor[0] = 1-pow(Cos((zh-270)/2.0), 4);
    fogColor[1] = 1-pow(Cos((zh-270)/2.0), 2);//pow(Sin((zh-270)/2.0), 4);
@@ -219,10 +350,17 @@ void display()
    glLoadIdentity();
 
    //  Perspective - set eye position
-   double Ex = -2*dim*Sin(th)*Cos(ph);
-   double Ey = +2*dim        *Sin(ph);
-   double Ez = +2*dim*Cos(th)*Cos(ph);
-   gluLookAt(Ex,Ey,Ez , 0,0,0 , 0,Cos(ph),0);
+   // double Ex = -2*dim*Sin(th)*Cos(ph);
+   // double Ey = +2*dim        *Sin(ph);
+   // double Ez = +2*dim*Cos(th)*Cos(ph);
+   // gluLookAt(Ex,Ey,Ez , 0,0,0 , 0,Cos(ph),0);
+   // feels silly to do this multiple times?
+   gluLookAt(
+      // cam_pos.x,cam_pos.y,cam_pos.z,
+      0,0,0,
+      cam_front.x, cam_front.y, cam_front.z,
+      0.0f,1.0f,0.0f
+      ); 
 
    glShadeModel(GL_SMOOTH);
 
@@ -242,9 +380,7 @@ void display()
       //  Draw light pos_sun as ball (still no lighting here)
       glColor3f(1,1,1);
 
-      // TODO: draw behind stuff
       ball(pos_sun[0],pos_sun[1],pos_sun[2] , 200);
-      ball(pos_moon[0],pos_moon[1],pos_moon[2] , 150);
       //  OpenGL should normalize normal vectors
       glEnable(GL_NORMALIZE);
       //  Enable lighting
@@ -262,6 +398,10 @@ void display()
       glLightfv(GL_LIGHT0,GL_DIFFUSE ,Diffuse);
       glLightfv(GL_LIGHT0,GL_SPECULAR,Specular);
       glLightfv(GL_LIGHT0,GL_POSITION,pos_sun);
+
+      // draw moon 
+      // TODO texture
+      ball(pos_moon[0],pos_moon[1],pos_moon[2] , 150);
    }
    else
       glDisable(GL_LIGHTING);
@@ -269,10 +409,8 @@ void display()
    glEnable(GL_DEPTH_TEST);
    glEnable(GL_MULTISAMPLE);
 
-   double half_chunk_size = chunk_size / 2.0;
-
-   int chunk_off_x = ceil((cam_x - half_chunk_size) / chunk_size);
-   int chunk_off_z = ceil((cam_z - half_chunk_size) / chunk_size);
+   int chunk_off_x = ceil((cam_pos.x - half_chunk_size) / chunk_size);
+   int chunk_off_z = ceil((cam_pos.z - half_chunk_size) / chunk_size);
 
    for (int x_chunk = -render_dist; x_chunk <= render_dist; x_chunk++) {
       for (int z_chunk = -render_dist; z_chunk <= render_dist; z_chunk++) {
@@ -287,8 +425,8 @@ void display()
          //       glColor3f(0, 0, 0);
          // }
 
-         int chunk_world_x = (int) (floor((cam_x + half_chunk_size) / chunk_size) + x_chunk);
-         int chunk_world_z = (int) (floor((cam_z + half_chunk_size) / chunk_size) + z_chunk);
+         int chunk_world_x = (int) (floor((cam_pos.x + half_chunk_size) / chunk_size) + x_chunk);
+         int chunk_world_z = (int) (floor((cam_pos.z + half_chunk_size) / chunk_size) + z_chunk);
 
          // double x_val = sin((chunk_world_x * 5.0) + 1) / 2.0;
          // double z_val = cos((chunk_world_z * 2.5) + 1) / 2.0;
@@ -313,9 +451,9 @@ void display()
 
          drawChunk(
                chunk,
-               x_chunk * chunk_size + amod(chunk_off_x * chunk_size - cam_x, chunk_size, half_chunk_size),
-               -cam_y,
-               z_chunk * chunk_size + amod(chunk_off_z * chunk_size - cam_z, chunk_size, half_chunk_size),
+               x_chunk * chunk_size + amod(chunk_off_x * chunk_size - cam_pos.x, chunk_size, half_chunk_size),
+               -cam_pos.y,
+               z_chunk * chunk_size + amod(chunk_off_z * chunk_size - cam_pos.z, chunk_size, half_chunk_size),
                chunk_world_x,
                chunk_world_z
          );
@@ -328,8 +466,8 @@ void display()
    glEnable(GL_BLEND);
    // Set the blending function
    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-   float center_x = amod(chunk_off_x * chunk_size - cam_x, chunk_size, half_chunk_size);
-   float center_z = amod(chunk_off_z * chunk_size - cam_z, chunk_size, half_chunk_size);
+   float center_x = amod(chunk_off_x * chunk_size - cam_pos.x, chunk_size, half_chunk_size);
+   float center_z = amod(chunk_off_z * chunk_size - cam_pos.z, chunk_size, half_chunk_size);
    int it_z[] = {-1,-1,+1,+1};
    int it_x[] = {-1,+1,+1,-1};
    glColor4f(0.0,0.0,1.0,0.5);
@@ -339,7 +477,7 @@ void display()
    {
       float x = center_x + (it_x[i] * (chunk_size * ((render_dist*2)+1) / 2.0));
       float z = center_z + (it_z[i] * (chunk_size * ((render_dist*2)+1) / 2.0));
-      glVertex3f(x, water_level-cam_y, z);
+      glVertex3f(x, water_level-cam_pos.y, z);
    }
    glEnd();
 
@@ -378,7 +516,8 @@ void idle()
 
 void special(int key,int x,int y)
 {
-      switch(key)
+
+   switch(key)
    {
       case GLUT_KEY_UP: 
       cursor++; 
@@ -392,8 +531,16 @@ void special(int key,int x,int y)
             cursor = PARAM_CT-1;
        break;
 
-      case GLUT_KEY_LEFT: params[cursor].decr(&params[cursor]); break;
-      case GLUT_KEY_RIGHT: params[cursor].incr(&params[cursor]); break;
+      // int dir;
+      // inefficient and lame
+      case GLUT_KEY_LEFT:
+         params[cursor].incr(&params[cursor], -1);
+         if(params[cursor].onChange) params[cursor].onChange(&params[cursor]);
+      break;
+      case GLUT_KEY_RIGHT:
+         params[cursor].incr(&params[cursor], 1);
+         if(params[cursor].onChange) params[cursor].onChange(&params[cursor]);
+      break;
    }
 
    // TODO rework this...
@@ -404,6 +551,9 @@ void special(int key,int x,int y)
 
 void reshape(int width,int height)
 {
+   wHeight = height;
+   wWidth = width;
+
    //  Ratio of the width to the height of the window
    asp = (height>0) ? (double)width/height : 1;
    //  Set the viewport to the entire window
@@ -431,6 +581,9 @@ int main(int argc,char* argv[])
    glutSpecialFunc(special);
    glutKeyboardFunc(keyboardDown);
    glutKeyboardUpFunc(keyboardUp);
+
+   glutSetCursor(GLUT_CURSOR_NONE);
+   glutPassiveMotionFunc(mouseMove);
    glutIdleFunc(idle);
    //  Pass control to GLUT so it can interact with the user
    ErrCheck("init");
