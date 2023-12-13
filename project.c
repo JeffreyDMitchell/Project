@@ -10,6 +10,9 @@
 // TODO remove
 GLfloat fogColor[] = {0.7f, 0.7f, 0.7f, 1.0f};
 int lastX, lastY = 0;
+vtx cam_pos = {0.0f, 0.0f, 10.0f};
+vtx cam_front = {0.0f, 0.0f, -1.0f};
+vtx cam_up = {0.0f, 1.0f, 0.0f};
 
 chunk_t * chunk_cache[CHUNK_CACHE_SIZE][CHUNK_CACHE_SIZE];
 
@@ -62,7 +65,12 @@ void init()
 }
 
 // custom param functions
-void cursorLockChange(struct param * self)
+// void cursorLockChange()
+// {
+
+// }
+
+void cursorLockChangeParam(struct param * self)
 {
    if(*(int *)self->val)
       glutSetCursor(GLUT_CURSOR_NONE);
@@ -86,7 +94,7 @@ struct param params[PARAM_CT] = {
       .name = "speed",
       .type = DOUBLE_T,
       .val = &cam_speed,
-      .delta.d = 10.0,
+      .delta.d = 5,
       .min.d = 0.0,
       .max.d = 100.0,
       .incr = &doubleIncr,
@@ -120,7 +128,7 @@ struct param params[PARAM_CT] = {
       .delta.i = 1,
       .incr = &boolIncr,
       .toStr = &boolToStr,
-      .onChange = &cursorLockChange
+      .onChange = &cursorLockChangeParam
    },
    {
       .name = "mouse sensitivity",
@@ -143,7 +151,14 @@ unsigned char keys[256];
 
 void keyTyped(unsigned char key,int x,int y)
 {
-
+   switch(key)
+   {
+      case 27:
+         // repeat garbage
+         cursorLock = 0;
+         glutSetCursor(GLUT_CURSOR_INHERIT);
+      break;
+   }
 }
 
 void keyboardDown(unsigned char key, int x, int y) 
@@ -178,9 +193,9 @@ void mouseMove(int x, int y)
    int dx = x - cx;
    int dy = y - cy;
 
-   if (dx || dy) 
+   if ((dx || dy)) 
    {
-      ph += dy * cam_rot_speed * sens * 0.001;
+      ph -= dy * cam_rot_speed * sens * 0.001;
       th += dx * cam_rot_speed * sens * 0.001;
       // TODO test on other platforms?
       glutWarpPointer(cx, cy);
@@ -189,38 +204,135 @@ void mouseMove(int x, int y)
 
 void processInput() 
 {
-   // bird's eye view cam controls
-   if(keys['i']) ph -= cam_rot_speed;
-   if(keys['k']) ph += cam_rot_speed;
-   if(keys['j']) th -= cam_rot_speed;
-   if(keys['l']) th += cam_rot_speed;
-   if(keys['[']) fov--;
-   if(keys[']']) fov++;
+   // // bird's eye view cam controls
+   // if(keys['i']) ph -= cam_rot_speed;
+   // if(keys['k']) ph += cam_rot_speed;
+   // if(keys['j']) th -= cam_rot_speed;
+   // if(keys['l']) th += cam_rot_speed;
+   // if(keys['[']) fov--;
+   // if(keys[']']) fov++;
 
-   if(keys['w']) cam_z-=cam_speed;
-   if(keys['s']) cam_z+=cam_speed;
-   if(keys['a']) cam_x-=cam_speed;
-   if(keys['d']) cam_x+=cam_speed;
+   // if(keys['w']) cam_pos.z-=cam_speed;
+   // if(keys['s']) cam_pos.z+=cam_speed;
+   // if(keys['a']) cam_pos.x-=cam_speed;
+   // if(keys['d']) cam_pos.x+=cam_speed;
 
-   if(keys['q']) cam_y-=cam_speed;
-   if(keys['e']) cam_y+=cam_speed;
+   // if(keys['q']) cam_pos.y-=cam_speed;
+   // if(keys['e']) cam_pos.y+=cam_speed;
 
-   // bounds checking
-   if(ph >= 90) ph = 90;
-   if(ph <= -90) ph = -90;
-   if(fov >= 80) fov = 80;
-   if(fov <= 20) fov = 20;
-   if(th >= 360) th = 0;
-   if(th < 0) th = 360;
+   // // bounds checking
+   // if(ph >= 90) ph = 90;
+   // if(ph <= -90) ph = -90;
+   // if(fov >= 80) fov = 80;
+   // if(fov <= 20) fov = 20;
+   // if(th >= 360) th = 0;
+   // if(th < 0) th = 360;
    
-   Project(fov,asp,dim);
+   // Project(fov,asp,dim);
+
+   // printf("x %f y %f z %f\n", cam_pos.x, cam_pos.y, cam_pos.z);
+
+   if(keys['w']) 
+   {
+      cam_pos.x += cam_speed * cam_front.x;
+      cam_pos.y += cam_speed * cam_front.y;
+      cam_pos.z += cam_speed * cam_front.z;
+   }
+   if(keys['s']) 
+   {
+      cam_pos.x -= cam_speed * cam_front.x;
+      cam_pos.y -= cam_speed * cam_front.y;
+      cam_pos.z -= cam_speed * cam_front.z;
+   }
+   if(keys['a']) 
+   {
+      vtx cross;
+      crossProduct(&cam_front, &cam_up, &cross);
+      normalizeVector(&cross);
+      cam_pos.x -= cam_speed * cross.x;
+      cam_pos.y -= cam_speed * cross.y;
+      cam_pos.z -= cam_speed * cross.z;
+   }
+   if(keys['d']) 
+   {
+      vtx cross;
+      crossProduct(&cam_front, &cam_up, &cross);
+      normalizeVector(&cross);
+      cam_pos.x += cam_speed * cross.x;
+      cam_pos.y += cam_speed * cross.y;
+      cam_pos.z += cam_speed * cross.z;
+   }
+
+   if(keys['q']) cam_pos.y -= cam_speed;
+   if(keys['e']) cam_pos.y += cam_speed;
+
+   if(keys['i']) ph += cam_rot_speed;
+   if(keys['k']) ph -= cam_rot_speed;
+   if(keys['l']) th += cam_rot_speed;
+   if(keys['j']) th -= cam_rot_speed;
+
+   if(ph > 89.0f) ph = 89.0f;
+   if(ph < -89.0f) ph = -89.0f;
+
+   // GLfloat front[3];
+   cam_front.x = cos(TWO_PI * th/360.0) * cos(TWO_PI * ph/360.0);
+   cam_front.y = sin(TWO_PI * ph/360.0);
+   cam_front.z = sin(TWO_PI * th/360.0) * cos(TWO_PI * ph/360.0);
+   normalizeVector(&cam_front);
 }
 
 double dimmer = 0;
 
+// lol
+void logic()
+{
+   int chunk_x = (int) (floor((cam_pos.x + half_chunk_size) / chunk_size));
+   int chunk_z = (int) (floor((cam_pos.z + half_chunk_size) / chunk_size));
+
+   // printf("getting chunk (%d,%d)\n", chunk_x, chunk_z);
+
+   chunk_t * cur_chunk = getChunk(chunk_x, chunk_z, chunk_cache);
+
+   // collisions
+   if(cur_chunk)
+   {
+      int chunk_off_x = ceil((cam_pos.x - half_chunk_size) / chunk_size);
+      int chunk_off_z = ceil((cam_pos.z - half_chunk_size) / chunk_size);
+
+      float vert_x = amod(chunk_off_x * chunk_size - cam_pos.x, chunk_size, half_chunk_size);
+      float vert_z = amod(chunk_off_z * chunk_size - cam_pos.z, chunk_size, half_chunk_size);
+
+      // maybe reverse this? i did...
+      int idx_x = CHUNK_RES - (((vert_x + half_chunk_size) / chunk_size) * CHUNK_RES) - 1;
+      int idx_z = CHUNK_RES - (((vert_z + half_chunk_size) / chunk_size) * CHUNK_RES) - 1;
+
+
+      // printf("x: %f z: %f\n", vert_x, vert_z);
+      float nearest_height = (cur_chunk->mesh[(idx_z * (chunk_res_verts)) + idx_x]) * chunk_size;
+
+      // for(int i = 0; i < chunk_res_verts; i++)
+      //    for(int j = 0; j < chunk_res_verts; j++)
+      //    {
+      //       printf("%f\n", cur_chunk->mesh[(i * chunk_res_verts) + j]);
+      //    }
+
+      // printf("x: %d z: %d\ty:%f\n", idx_x, idx_z, nearest_height);
+
+      if(cam_pos.y < (float)nearest_height + collision_fudge)
+         cam_pos.y = (float)nearest_height + collision_fudge;
+
+      // printf("%f\n", nearest_height);
+      // find nearest vert
+      // amod();
+      // take mod of where we are
+      // bias halfway into chunk
+   }
+}
+
 void display()
 {
    processInput();
+   logic();
 
    fogColor[0] = 1-pow(Cos((zh-270)/2.0), 4);
    fogColor[1] = 1-pow(Cos((zh-270)/2.0), 2);//pow(Sin((zh-270)/2.0), 4);
@@ -238,10 +350,17 @@ void display()
    glLoadIdentity();
 
    //  Perspective - set eye position
-   double Ex = -2*dim*Sin(th)*Cos(ph);
-   double Ey = +2*dim        *Sin(ph);
-   double Ez = +2*dim*Cos(th)*Cos(ph);
-   gluLookAt(Ex,Ey,Ez , 0,0,0 , 0,Cos(ph),0);
+   // double Ex = -2*dim*Sin(th)*Cos(ph);
+   // double Ey = +2*dim        *Sin(ph);
+   // double Ez = +2*dim*Cos(th)*Cos(ph);
+   // gluLookAt(Ex,Ey,Ez , 0,0,0 , 0,Cos(ph),0);
+   // feels silly to do this multiple times?
+   gluLookAt(
+      // cam_pos.x,cam_pos.y,cam_pos.z,
+      0,0,0,
+      cam_front.x, cam_front.y, cam_front.z,
+      0.0f,1.0f,0.0f
+      ); 
 
    glShadeModel(GL_SMOOTH);
 
@@ -290,10 +409,8 @@ void display()
    glEnable(GL_DEPTH_TEST);
    glEnable(GL_MULTISAMPLE);
 
-   double half_chunk_size = chunk_size / 2.0;
-
-   int chunk_off_x = ceil((cam_x - half_chunk_size) / chunk_size);
-   int chunk_off_z = ceil((cam_z - half_chunk_size) / chunk_size);
+   int chunk_off_x = ceil((cam_pos.x - half_chunk_size) / chunk_size);
+   int chunk_off_z = ceil((cam_pos.z - half_chunk_size) / chunk_size);
 
    for (int x_chunk = -render_dist; x_chunk <= render_dist; x_chunk++) {
       for (int z_chunk = -render_dist; z_chunk <= render_dist; z_chunk++) {
@@ -308,8 +425,8 @@ void display()
          //       glColor3f(0, 0, 0);
          // }
 
-         int chunk_world_x = (int) (floor((cam_x + half_chunk_size) / chunk_size) + x_chunk);
-         int chunk_world_z = (int) (floor((cam_z + half_chunk_size) / chunk_size) + z_chunk);
+         int chunk_world_x = (int) (floor((cam_pos.x + half_chunk_size) / chunk_size) + x_chunk);
+         int chunk_world_z = (int) (floor((cam_pos.z + half_chunk_size) / chunk_size) + z_chunk);
 
          // double x_val = sin((chunk_world_x * 5.0) + 1) / 2.0;
          // double z_val = cos((chunk_world_z * 2.5) + 1) / 2.0;
@@ -334,9 +451,9 @@ void display()
 
          drawChunk(
                chunk,
-               x_chunk * chunk_size + amod(chunk_off_x * chunk_size - cam_x, chunk_size, half_chunk_size),
-               -cam_y,
-               z_chunk * chunk_size + amod(chunk_off_z * chunk_size - cam_z, chunk_size, half_chunk_size),
+               x_chunk * chunk_size + amod(chunk_off_x * chunk_size - cam_pos.x, chunk_size, half_chunk_size),
+               -cam_pos.y,
+               z_chunk * chunk_size + amod(chunk_off_z * chunk_size - cam_pos.z, chunk_size, half_chunk_size),
                chunk_world_x,
                chunk_world_z
          );
@@ -349,8 +466,8 @@ void display()
    glEnable(GL_BLEND);
    // Set the blending function
    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-   float center_x = amod(chunk_off_x * chunk_size - cam_x, chunk_size, half_chunk_size);
-   float center_z = amod(chunk_off_z * chunk_size - cam_z, chunk_size, half_chunk_size);
+   float center_x = amod(chunk_off_x * chunk_size - cam_pos.x, chunk_size, half_chunk_size);
+   float center_z = amod(chunk_off_z * chunk_size - cam_pos.z, chunk_size, half_chunk_size);
    int it_z[] = {-1,-1,+1,+1};
    int it_x[] = {-1,+1,+1,-1};
    glColor4f(0.0,0.0,1.0,0.5);
@@ -360,7 +477,7 @@ void display()
    {
       float x = center_x + (it_x[i] * (chunk_size * ((render_dist*2)+1) / 2.0));
       float z = center_z + (it_z[i] * (chunk_size * ((render_dist*2)+1) / 2.0));
-      glVertex3f(x, water_level-cam_y, z);
+      glVertex3f(x, water_level-cam_pos.y, z);
    }
    glEnd();
 

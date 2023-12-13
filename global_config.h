@@ -4,11 +4,13 @@
 #define PARAM_CT 6
 #define CHUNK_RES 256
 #define CHUNK_CACHE_SIZE 32
+#define CHUNK_SIZE 8192
 
 #define TWO_PI 6.283185307179586
 
 // TERRAIN GEN STUFF
 extern double chunk_size;
+extern double half_chunk_size;
 // extern double render_dist_dbl;
 extern double water_level;
 extern int render_dist;
@@ -16,9 +18,9 @@ extern int chunk_res_verts;
 extern int chunk_res_faces;
 
 // CAMERA STUFF
-extern double cam_x;
-extern double cam_z;
-extern double cam_y;
+// extern double cam_x;
+// extern double cam_z;
+// extern double cam_y;
 extern double cam_y_offset;
 extern double cam_speed;
 extern float cam_rot_speed;
@@ -28,10 +30,7 @@ extern int fov;
 extern double asp;
 extern double dim;
 extern double sens;
-// fpv
-// extern vtx cam_pos;
-// extern vtx cam_front;
-// extern vtx cam_up;
+extern float collision_fudge;
 
 // window stuff
 extern int wHeight;

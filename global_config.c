@@ -1,7 +1,9 @@
 #include "global_config.h"
 
 // TERRAIN GEN STUFF
-double chunk_size = 8192;
+// good god just refactor please
+double chunk_size = CHUNK_SIZE;
+double half_chunk_size = CHUNK_SIZE/ 2.0;
 // double render_dist_dbl = 3;
 double water_level = 0;
 int render_dist = 3;
@@ -10,9 +12,9 @@ int chunk_res_faces = CHUNK_RES-1;
 
 
 // CAMERA STUFF
-double cam_x = 0.0001, cam_z = 0.0001, cam_y=0.0001;
+// double cam_x = 0.0001, cam_z = 0.0001, cam_y=0.0001;
 double cam_y_offset = 0;
-double cam_speed = 50.0;
+double cam_speed = 10;
 float cam_rot_speed = 2.0f;
 float th=0;         //  Azimuth of view angle
 float ph=0;         //  Elevation of view angle
@@ -20,6 +22,7 @@ int fov=55;       //  Field of view (for perspective)
 double asp=1;     //  Aspect ratio
 double dim=6;     //  Size of world
 double sens = 5;
+float collision_fudge = 100;
 
 // fpv
 // double cam_pos[3] = {0.0f, 0.0f, 0.0f};

@@ -180,7 +180,7 @@ float testTerrain(struct biome * self, double x, double z)
    // // above waterline
    // height += 50.0f;
 
-   return x / (chunk_size);
+   return x;
 }
 
 color_t testColor(struct biome * self, float height, vtx norm)
@@ -210,7 +210,7 @@ biome_t * biome_map[BIOME_MAP_WIDTH][BIOME_MAP_WIDTH] =
 //    {&b7, &iceberg_biome, &iceMtSmall_biome}
 // };
 // {
-//    {&iceMtSmall_biome}
+//    {&test_biome}
 // };
 
 inline void initChunk(chunk_t * chunk, int id_x, int id_z)
