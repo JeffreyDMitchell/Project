@@ -1,11 +1,17 @@
 #include <math.h>
 #include <omp.h>
+#include <pthread.h>
 
 #include "CSCIx229.h"
 #include "graphics_utils.h"
 #include "global_config.h"
 #include "chunk.h"
 #include "parameter.h"
+
+#define GENERATOR_THREAD_CT 1
+#define DESTRUCTOR_THREAD_CT 1
+
+#define ASYNC_GEN
 
 // TODO remove
 GLfloat fogColor[] = {0.7f, 0.7f, 0.7f, 1.0f};
@@ -15,6 +21,29 @@ vtx cam_front = {0.0f, 0.0f, -1.0f};
 vtx cam_up = {0.0f, 1.0f, 0.0f};
 
 chunk_t * chunk_cache[CHUNK_CACHE_SIZE][CHUNK_CACHE_SIZE];
+dstack gen_stack, tra_stack;
+
+void *generator_task(void *in)
+{
+   printf("Good boy generator starting task\n");
+
+   while(1)
+   {
+      chunk_t * chunk;
+      dstack_pop(&gen_stack, (void **)&chunk);
+
+      printf("Good boy generator generating chunk!\n");
+
+      generateChunk(chunk);
+   }
+
+   pthread_exit(NULL);
+}
+
+void *destructor_task(void *in)
+{
+   pthread_exit(NULL);
+}
 
 void configureFog(int dist)
 {
@@ -39,6 +68,15 @@ void configureFog(int dist)
 void init()
 {
    memset(chunk_cache, 0, sizeof(chunk_t *) * CHUNK_CACHE_SIZE * CHUNK_CACHE_SIZE);
+
+   dstack_init(&gen_stack);
+   dstack_init(&tra_stack);
+
+   pthread_t generators[GENERATOR_THREAD_CT];
+   pthread_t destructors[DESTRUCTOR_THREAD_CT];
+
+   for(int i = 0; i < GENERATOR_THREAD_CT; i++)
+      pthread_create(&generators[i], NULL, generator_task, NULL);
 
    glEnable(GL_FOG);
    glFogfv(GL_FOG_COLOR, fogColor);
@@ -426,9 +464,22 @@ void display()
          {
             chunk = malloc(sizeof(chunk_t));
             initChunk(chunk, chunk_world_x, chunk_world_z);
+            
+            #ifdef ASYNC_GEN
+            queueGenerate(chunk, &gen_stack);
+            #else
             generateChunk(chunk);
+            #endif
+
+            
             cacheChunk(chunk, chunk_cache);
             // printf("generating chunk.\n");
+         }
+
+         // ugh
+         if(!chunk->buffered)
+         {
+            bufferChunk(chunk);
          }
 
          drawChunk(

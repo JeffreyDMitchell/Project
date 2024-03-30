@@ -11,10 +11,17 @@
 int main()
 {
     printf("test start\n");
-    chunk_t chunk;
-    for(int i = 0; i < 100; i++)
-        generateChunk(&chunk);
-    printf("test end\n");
+    // chunk_t chunk;
+    // for(int i = 0; i < 100; i++)
+    //     generateChunk(&chunk);
+    
+    dstack ds;
+    int *hold;
 
+    dstack_init(&ds);
+
+    dstack_pop(&ds, (void **) &hold);
+
+    printf("test end\n");
     exit(0);
 }

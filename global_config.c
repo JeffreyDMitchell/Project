@@ -6,7 +6,7 @@ double chunk_size = CHUNK_SIZE;
 double half_chunk_size = CHUNK_SIZE/ 2.0;
 // double render_dist_dbl = 3;
 double water_level = 0;
-int render_dist = 3;
+int render_dist = 1;
 int chunk_res_verts = CHUNK_RES;
 int chunk_res_faces = CHUNK_RES-1;
 

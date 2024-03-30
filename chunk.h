@@ -4,8 +4,10 @@
 #include "graphics_utils.h"
 #include "CSCIx229.h"
 #include "global_config.h"
+#include "dstack.h"
 
 #include <float.h>
+#include <semaphore.h>
 
 
 #ifndef _CHUNK_H_
@@ -13,12 +15,18 @@
 
 typedef struct chunk
 {
+   int valid;
+   int buffered;
+   sem_t lock;
+
    int id_x, id_z;
    GLuint vbo_id;
 
    float mesh[CHUNK_RES*CHUNK_RES];
    vtx normals[CHUNK_RES*CHUNK_RES];
    color_t colors[CHUNK_RES*CHUNK_RES];
+
+   GLfloat *vdat;
 } 
 chunk_t;
 
@@ -304,6 +312,10 @@ biome_t * biome_map[BIOME_MAP_WIDTH][BIOME_MAP_WIDTH] =
 
 static inline void initChunk(chunk_t * chunk, int id_x, int id_z)
 {
+   sem_init(&chunk->lock, 0, 1);
+   chunk->buffered = 0;
+   chunk->valid = 0;
+
    chunk->id_x = id_x;
    chunk->id_z = id_z;
 
@@ -315,6 +327,8 @@ static inline void initChunk(chunk_t * chunk, int id_x, int id_z)
 
 static inline void destroyChunk(chunk_t * chunk)
 {
+   printf("This should not be happening yet\n");
+
    glDeleteBuffers(1, &(chunk->vbo_id));
 
    free(chunk);
@@ -349,7 +363,12 @@ static inline chunk_t * getChunk(int id_x, int id_z, chunk_t *chunk_cache[CHUNK_
    return fetched;
 }
 
-void generateChunk(chunk_t * chunk)
+void queueGenerate(chunk_t *chunk, dstack *gen_stack)
+{
+   dstack_push(gen_stack, (void *) chunk);
+}
+
+void generateChunk(chunk_t *chunk)
 {
    double frag = 1.0 / chunk_res_faces;
    float adj_x = chunk->id_x * chunk_size;
@@ -510,7 +529,11 @@ void generateChunk(chunk_t * chunk)
    */
    // all GLfloats, 3 for pos, 3 for norm, 3 for color, entry for all verticies...
    // GLfloat vdat[(3 + 3 + 3) * 2 * chunk_res_verts * (chunk_res_verts-1)];
-   GLfloat * vdat = (GLfloat *) malloc(sizeof(GLfloat) * (3 + 3 + 3) * 2 * chunk_res_verts * (chunk_res_verts-1));
+   // GLfloat * vdat = (GLfloat *) malloc(sizeof(GLfloat) * (3 + 3 + 3) * 2 * chunk_res_verts * (chunk_res_verts-1));
+   chunk->vdat = (GLfloat *) malloc(sizeof(GLfloat) * (3 + 3 + 3) * 2 * chunk_res_verts * (chunk_res_verts-1));
+   // printf("is this happening a lot?\n");
+   GLfloat *vdat = chunk->vdat;
+
    // bundle * bdls = chunk->bundles;
    int it = 0;
    int dat_size = (3 + 3 + 3);
@@ -565,21 +588,50 @@ void generateChunk(chunk_t * chunk)
          it++;
       }
 
+   // glGenBuffers(1, &(chunk->vbo_id));
+   // glBindBuffer(GL_ARRAY_BUFFER, chunk->vbo_id);
+   // glBufferData(
+   //    GL_ARRAY_BUFFER, 
+   //    (sizeof(GLfloat) * (3 + 3 + 3) * 2 * chunk_res_verts * (chunk_res_verts-1)), 
+   //    vdat, 
+   //    GL_STATIC_DRAW
+   //    );
+   // glBindBuffer(GL_ARRAY_BUFFER, 0);   
+
+   // free(vdat);
+
+   chunk->valid = 1;
+}
+
+static inline void bufferChunk(chunk_t *chunk)
+{
+   // printf("entering buffer routine\n");
+
+   if(!chunk->valid) return;
+
+   printf("chunk valid, attempting buffer\n");
+
+
    glGenBuffers(1, &(chunk->vbo_id));
    glBindBuffer(GL_ARRAY_BUFFER, chunk->vbo_id);
    glBufferData(
       GL_ARRAY_BUFFER, 
       (sizeof(GLfloat) * (3 + 3 + 3) * 2 * chunk_res_verts * (chunk_res_verts-1)), 
-      vdat, 
+      chunk->vdat, 
       GL_STATIC_DRAW
       );
    glBindBuffer(GL_ARRAY_BUFFER, 0);   
 
-   free(vdat);
+   chunk->buffered = 1;
+
+   // free(chunk->vdat);
 }
 
 static inline void drawChunk(chunk_t * chunk, double screen_x, double y, double screen_z, int id_x, int id_z)
 {
+
+   if(!chunk->buffered) return;
+
    float white[] = {1,1,1,1};
    float black[] = {0,0,0,1};
    glMaterialfv(GL_FRONT_AND_BACK,GL_SPECULAR,white);
@@ -627,8 +679,6 @@ static inline void drawChunk(chunk_t * chunk, double screen_x, double y, double 
    glPopMatrix();
 }
 
-#endif
-
 // applies a provided function to every vertex of a chunk
 void vertexFn(void (*func)(int x, int z, void * arg), void * arg)
 {
@@ -637,3 +687,5 @@ void vertexFn(void (*func)(int x, int z, void * arg), void * arg)
       for(int x = 0; x < chunk_res_verts; x++)
          func(x, z, arg);
 }
+
+#endif

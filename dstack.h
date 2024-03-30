@@ -2,8 +2,10 @@
 #include <semaphore.h>
 #include <stdio.h>
 
-#define DSTACK_INIT_SIZE 8
-#define DSTACK_SIZE_INCREMENT 8
+#pragma once
+
+#define DSTACK_INIT_SIZE 64
+#define DSTACK_SIZE_INCREMENT 64
 
 typedef struct
 {
