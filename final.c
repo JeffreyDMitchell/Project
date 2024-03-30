@@ -204,33 +204,6 @@ void mouseMove(int x, int y)
 
 void processInput() 
 {
-   // // bird's eye view cam controls
-   // if(keys['i']) ph -= cam_rot_speed;
-   // if(keys['k']) ph += cam_rot_speed;
-   // if(keys['j']) th -= cam_rot_speed;
-   // if(keys['l']) th += cam_rot_speed;
-
-
-   // if(keys['w']) cam_pos.z-=cam_speed;
-   // if(keys['s']) cam_pos.z+=cam_speed;
-   // if(keys['a']) cam_pos.x-=cam_speed;
-   // if(keys['d']) cam_pos.x+=cam_speed;
-
-   // if(keys['q']) cam_pos.y-=cam_speed;
-   // if(keys['e']) cam_pos.y+=cam_speed;
-
-   // // bounds checking
-   // if(ph >= 90) ph = 90;
-   // if(ph <= -90) ph = -90;
-   // if(fov >= 80) fov = 80;
-   // if(fov <= 20) fov = 20;
-   // if(th >= 360) th = 0;
-   // if(th < 0) th = 360;
-   
-   // Project(fov,asp,dim);
-
-   // printf("x %f y %f z %f\n", cam_pos.x, cam_pos.y, cam_pos.z);
-
    if(keys['w']) 
    {
       cam_pos.x += cam_speed * cam_front.x;

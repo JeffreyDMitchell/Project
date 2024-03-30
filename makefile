@@ -1,4 +1,4 @@
-EXE=final
+EXE=final test
 
 # Main target
 all: $(EXE)
@@ -38,10 +38,12 @@ loadobj.o: loadobj.c CSCIx229.h
 projection.o: projection.c CSCIx229.h
 
 final.o: final.c CSCIx229.h stb_perlin.h global_config.h graphics_utils.h chunk.h biome.h
+test.o: test.c CSCIx229.h stb_perlin.h global_config.h graphics_utils.h chunk.h biome.h
 global_config.o: global_config.c global_config.h
+dstack.o: dstack.c dstack.h
 
 # Create archive
-CSCIx229.a: fatal.o errcheck.o print.o loadtexbmp.o loadobj.o projection.o
+deps.a: fatal.o errcheck.o print.o loadtexbmp.o loadobj.o projection.o global_config.o dstack.o
 	ar -rcs $@ $^
 
 # Compile rules
@@ -51,7 +53,10 @@ CSCIx229.a: fatal.o errcheck.o print.o loadtexbmp.o loadobj.o projection.o
 	$(CXX) -c $(CFLG) $<
 
 # Link
-final: final.o CSCIx229.a global_config.o
+final: final.o deps.a 
+	$(CC) $(CFLG) -o $@ $^ $(LIBS)
+
+test: test.o deps.a 
 	$(CC) $(CFLG) -o $@ $^ $(LIBS)
 
 # Clean
