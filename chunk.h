@@ -52,7 +52,7 @@ float mesaTerrain(struct biome * self, double x, double z)
 {
    float s1 = 0.001f;
    float s2 = 0.00025f;
-   float peak = 500.0f;
+   // float peak = 500.0f;
 
    float height = 0.0f;
 
@@ -62,7 +62,7 @@ float mesaTerrain(struct biome * self, double x, double z)
    // lock to flat tops
    height = roundTo(height, 250.0f)-100.0f;
    // some noise
-   height += stb_perlin_noise3(x * s1, 0, z * s1, 0, 0, 0) * 100.0f;
+   height += stb_perlin_noise3(x * s1, 0, z * s1, 0, 0, 0) * 200.0f;
 
    return height;
 }
@@ -81,7 +81,7 @@ float ogTerrain(struct biome * self, double x, double z)
 
    float base = (stb_perlin_noise3(x * s4, 0, z * s4, 0, 0, 0) + 1) / 2.0;
    float hills = base * 1000;
-   float mountains = smoothstep(.5,.95,base) * pow((stb_perlin_noise3(x * s2, 1, z * s2, 0, 0, 0) + 1) / 2.0 * 2, 3) * 100;
+   float mountains = smoothstep(.5,.95,base) * pow((stb_perlin_noise3(x * s2, 1, z * s2, 0, 0, 0) + 1) / 2.0 * 2, 2) * 100;
    float lakes = smoothstep(0.5,0.95,1.0-base) * (stb_perlin_noise3(x * s3, 2, z * s3, 0, 0, 0) - 1) / 2.0 * 500;
    
    float height = 0;
@@ -96,7 +96,12 @@ float ogTerrain(struct biome * self, double x, double z)
 
 color_t ogColor(struct biome * self, float height, vtx norm)
 {
-   return (color_t) { .r = 0.245f, .g = 0.650f, .b = 0.208f };
+   // color_t grass = { .r = 0.245f, .g = 0.650f, .b = 0.208f };
+   color_t grass = { .r = 0.233, .g = 0.540, .b = 0.196 };
+   color_t sand = { .r = 0.850f, .g = 0.761f, .b = 0.365f };
+
+   return colorSmoothstep(0.01, 0.02, height, sand, grass);
+   // return (color_t) { .r = 0.245f, .g = 0.650f, .b = 0.208f };
 }
 
 // BEGIN OCEAN
@@ -108,7 +113,7 @@ float oceanTerrain(struct biome * self, double x, double z)
    return height;
 }
 
-color_t oceanColor(struct biome * self, float height)
+color_t oceanColor(struct biome * self, float height, vtx norm)
 {
    return (color_t) { .r = 0.850f, .g = 0.761f, .b = 0.365f };
 }
@@ -117,7 +122,7 @@ color_t oceanColor(struct biome * self, float height)
 float icebergTerrain(struct biome * self, double x, double z)
 {
    float s1 = 0.00025f;
-   float s2 = 0.00025f;
+   // float s2 = 0.00025f;
    float shelf = 100.0f;
 
    float height = 0.0f;
@@ -168,6 +173,87 @@ color_t iceMtSmallColor(struct biome * self, float height, vtx norm)
    return colorSmoothstep(0.6, .95, orient, steep, flat);
 }
 
+float rockiesTerrain(struct biome * self, double x, double z)
+{
+   float s1 = 0.0001f;
+   float s2 = 0.0001f;
+
+   float height = 0.0f;
+   float factor = (1.0 - (stb_perlin_ridge_noise3(x * s1, 0, z * s1, 2.0, 0.5, 0.5, 1) / 0.15));
+
+   height += pow(fabs(stb_perlin_fbm_noise3(x*s2, 0, z*s2, 2.0, 0.5, 6))+1, 4) * 500.0f;
+   height *= factor;
+
+   // below waterline TODO TwEAK THIS
+   height -= 200.0f;
+
+   return height;
+}
+
+color_t rockiesColor(struct biome * self, float height, vtx norm)
+{
+   color_t stone = { .r = 0.5f, .g = 0.525f, .b = 0.54f };
+   color_t snow = { 1,1,1 };
+   color_t grass = { .r = 0.222f, .g = 0.43f, .b = 0.185f };
+
+   color_t flat = colorSmoothstep(0.1, 0.25, height, grass, snow);
+
+
+   float orient = dot(VERTICAL, norm);
+   
+   return colorSmoothstep(0.6, .95, orient, stone, flat);
+}
+
+
+
+
+
+
+
+
+
+
+float hillRiverTerrain(struct biome * self, double x, double z)
+{
+   float s1 = 0.0005f;
+   // float s2 = 0.00025f;
+   float shelf = 100.0f;
+
+   float height = 0.0f;
+
+   // iceberg cut-outs
+   // output from stf func is 0-0.5, but that depends on params.
+   height += shelf - (pow(stb_perlin_ridge_noise3(x * s1, 0, z * s1, 2.0, 0.5, 1.0, 1) * 2, 20) * 5 * shelf); 
+
+   height += fabs(stb_perlin_ridge_noise3(x * s1, 0, z * s1, 2.0, 0.5, 1.0, 1) * 2) * 500;
+
+   height = smoothMax(height, -100.0f, 10.0f);
+
+   return height;
+}
+
+color_t hillRiverColor(struct biome * self, float height, vtx norm)
+{
+   color_t stone = { .r = 0.5f, .g = 0.525f, .b = 0.54f };
+   color_t snow = { 1,1,1 };
+   color_t grass = { .r = 0.322f, .g = 0.43f, .b = 0.185f };
+
+   color_t flat = colorSmoothstep(0.1, 0.25, height, grass, snow);
+
+
+   float orient = dot(VERTICAL, norm);
+   
+   return colorSmoothstep(0.6, .95, orient, stone, flat);
+}
+
+
+
+
+
+
+
+
+
 
 // BEGIN TEST
 float testTerrain(struct biome * self, double x, double z)
@@ -194,15 +280,18 @@ biome_t og_biome =         { .terrainGen=ogTerrain,         .colorGen=ogColor };
 biome_t ocean_biome =      { .terrainGen=oceanTerrain,      .colorGen=oceanColor };
 biome_t iceberg_biome =    { .terrainGen=icebergTerrain,    .colorGen=icebergColor };
 biome_t iceMtSmall_biome = { .terrainGen=iceMtSmallTerrain, .colorGen=iceMtSmallColor };
+biome_t rockies_biome =    { .terrainGen=rockiesTerrain,    .colorGen=rockiesColor };
+biome_t river_hills_biome ={ .terrainGen=hillRiverTerrain,  .colorGen=hillRiverColor };
+
 biome_t test_biome =       { .terrainGen=testTerrain,       .colorGen=testColor };
 
 #define BIOME_MAP_WIDTH 4
 biome_t * biome_map[BIOME_MAP_WIDTH][BIOME_MAP_WIDTH] = 
 {
-   { &mesa_biome, &dunes_biome,  &ocean_biome,     &og_biome },
-   { &mesa_biome, &ocean_biome,  &og_biome,        &og_biome },
-   { &dunes_biome,&iceberg_biome,&iceberg_biome,   &iceMtSmall_biome },
-   { &og_biome,   &iceberg_biome,&iceMtSmall_biome,&iceMtSmall_biome }
+   { &mesa_biome,    &dunes_biome,  &ocean_biome,     &rockies_biome },
+   { &mesa_biome,    &ocean_biome,  &og_biome,        &river_hills_biome },
+   { &dunes_biome,   &iceberg_biome,&iceberg_biome,   &iceMtSmall_biome },
+   { &rockies_biome, &iceberg_biome,&iceMtSmall_biome,&iceMtSmall_biome }
 };
 // {
 //    {&ocean_biome, &dunes_biome, &mesa_biome},
@@ -213,7 +302,7 @@ biome_t * biome_map[BIOME_MAP_WIDTH][BIOME_MAP_WIDTH] =
 //    {&test_biome}
 // };
 
-inline void initChunk(chunk_t * chunk, int id_x, int id_z)
+static inline void initChunk(chunk_t * chunk, int id_x, int id_z)
 {
    chunk->id_x = id_x;
    chunk->id_z = id_z;
@@ -224,14 +313,14 @@ inline void initChunk(chunk_t * chunk, int id_x, int id_z)
    memset(chunk->colors, 0, sizeof(color_t) * ct);
 }
 
-inline void destroyChunk(chunk_t * chunk)
+static inline void destroyChunk(chunk_t * chunk)
 {
    glDeleteBuffers(1, &(chunk->vbo_id));
 
    free(chunk);
 }
 
-inline void flushChunkCache(chunk_t *chunk_cache[CHUNK_CACHE_SIZE][CHUNK_CACHE_SIZE])
+static inline void flushChunkCache(chunk_t *chunk_cache[CHUNK_CACHE_SIZE][CHUNK_CACHE_SIZE])
 {
    for(int i = 0; i < CHUNK_CACHE_SIZE; i++)
       for(int j = 0; j < CHUNK_CACHE_SIZE; j++)
@@ -241,7 +330,7 @@ inline void flushChunkCache(chunk_t *chunk_cache[CHUNK_CACHE_SIZE][CHUNK_CACHE_S
    memset(chunk_cache, 0, sizeof(chunk_t *) * CHUNK_CACHE_SIZE * CHUNK_CACHE_SIZE);
 }
 
-inline void cacheChunk(chunk_t * chunk, chunk_t *chunk_cache[CHUNK_CACHE_SIZE][CHUNK_CACHE_SIZE]) 
+static inline void cacheChunk(chunk_t * chunk, chunk_t *chunk_cache[CHUNK_CACHE_SIZE][CHUNK_CACHE_SIZE]) 
 {
    chunk_t **target = &chunk_cache[imod(chunk->id_z, CHUNK_CACHE_SIZE)][imod(chunk->id_x, CHUNK_CACHE_SIZE)];
 
@@ -250,7 +339,7 @@ inline void cacheChunk(chunk_t * chunk, chunk_t *chunk_cache[CHUNK_CACHE_SIZE][C
    *target = chunk;
 }
 
-inline chunk_t * getChunk(int id_x, int id_z, chunk_t *chunk_cache[CHUNK_CACHE_SIZE][CHUNK_CACHE_SIZE])
+static inline chunk_t * getChunk(int id_x, int id_z, chunk_t *chunk_cache[CHUNK_CACHE_SIZE][CHUNK_CACHE_SIZE])
 {
    chunk_t * fetched = chunk_cache[imod(id_z, CHUNK_CACHE_SIZE)][imod(id_x, CHUNK_CACHE_SIZE)];
 
@@ -267,10 +356,9 @@ void generateChunk(chunk_t * chunk)
    float adj_z = chunk->id_z * chunk_size;
    double half_chunk_size = chunk_size / 2.0;
 
-   // the following approach attempts to limit the number of passes of the data
-   // the trade-off is massively less readable code D:
    float global_weights[CHUNK_RES][CHUNK_RES][BIOME_MAP_WIDTH][BIOME_MAP_WIDTH];
    #pragma omp parallel for collapse(2)
+   // #pragma acc parallel loop collapse(2)
    for(int z = 0; z < chunk_res_verts; z++)
       for(int x = 0; x < chunk_res_verts; x++)
       {
@@ -314,7 +402,7 @@ void generateChunk(chunk_t * chunk)
          // run each biome generation functions weighted by above
          float height = 0;
          color_t primary = { .r=0, .g=0, .b=0 };
-         color_t secondary;
+         // color_t secondary;
          for(int bm_x = 0; bm_x < BIOME_MAP_WIDTH; bm_x++)
             for(int bm_z = 0; bm_z < BIOME_MAP_WIDTH; bm_z++)
             {
@@ -385,12 +473,12 @@ void generateChunk(chunk_t * chunk)
    for(int z = 0; z < chunk_res_verts; z++)
       for(int x = 0; x < chunk_res_verts; x++)
       {
-         float vert_x = adj_x+(x / (double) chunk_res_faces * chunk_size) - half_chunk_size;
-         float vert_z = adj_z+(z / (double) chunk_res_faces * chunk_size) - half_chunk_size;
+         // float vert_x = adj_x+(x / (double) chunk_res_faces * chunk_size) - half_chunk_size;
+         // float vert_z = adj_z+(z / (double) chunk_res_faces * chunk_size) - half_chunk_size;
 
-         float sbiome = 0.00005f / (BIOME_MAP_WIDTH);
-         float biome_x = pingPong(fabs(stb_perlin_noise3(vert_x * sbiome, -1, vert_z * sbiome, 0, 0, 0) * (3.0f * BIOME_MAP_WIDTH)), BIOME_MAP_WIDTH);
-         float biome_z = pingPong(fabs(stb_perlin_noise3(vert_x * sbiome, -2, vert_z * sbiome, 0, 0, 0) * (3.0f * BIOME_MAP_WIDTH)), BIOME_MAP_WIDTH);
+         // float sbiome = 0.00005f / (BIOME_MAP_WIDTH);
+         // float biome_x = pingPong(fabs(stb_perlin_noise3(vert_x * sbiome, -1, vert_z * sbiome, 0, 0, 0) * (3.0f * BIOME_MAP_WIDTH)), BIOME_MAP_WIDTH);
+         // float biome_z = pingPong(fabs(stb_perlin_noise3(vert_x * sbiome, -2, vert_z * sbiome, 0, 0, 0) * (3.0f * BIOME_MAP_WIDTH)), BIOME_MAP_WIDTH);
 
          // TODO if contribution is under threshold, dont generate to save cpu
          // will have to renormalize to avoid sinking
@@ -490,7 +578,7 @@ void generateChunk(chunk_t * chunk)
    free(vdat);
 }
 
-inline void drawChunk(chunk_t * chunk, double screen_x, double y, double screen_z, int id_x, int id_z)
+static inline void drawChunk(chunk_t * chunk, double screen_x, double y, double screen_z, int id_x, int id_z)
 {
    float white[] = {1,1,1,1};
    float black[] = {0,0,0,1};
@@ -500,7 +588,7 @@ inline void drawChunk(chunk_t * chunk, double screen_x, double y, double screen_
    // Save transformation
    glPushMatrix();
 
-   double frag = 1.0 / chunk_res_faces;
+   // double frag = 1.0 / chunk_res_faces;
 
    glTranslated(screen_x,y,screen_z);
    glScaled(chunk_size, chunk_size, chunk_size);

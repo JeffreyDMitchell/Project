@@ -84,7 +84,7 @@ struct param params[PARAM_CT] = {
       .type = INT_T,
       .val = &render_dist,
       .delta.i = 1,
-      .min.i = 1,
+      .min.i = 0,
       .max.i = 10,
       .incr = &intIncr,
       .toStr = &intToStr,
@@ -96,7 +96,7 @@ struct param params[PARAM_CT] = {
       .val = &cam_speed,
       .delta.d = 5,
       .min.d = 0.0,
-      .max.d = 100.0,
+      .max.d = 200.0,
       .incr = &doubleIncr,
       .toStr = &doubleToStr,
       .onChange = NULL
@@ -134,9 +134,9 @@ struct param params[PARAM_CT] = {
       .name = "mouse sensitivity",
       .type = DOUBLE_T,
       .val = &sens,
-      .delta.d = 0.5,
+      .delta.d = 0.25,
       .min.d = 0.5,
-      .max.d = 10.0,
+      .max.d = 20.0,
       .incr = &doubleIncr,
       .toStr = &doubleToStr,
       .onChange = NULL
@@ -209,8 +209,7 @@ void processInput()
    // if(keys['k']) ph += cam_rot_speed;
    // if(keys['j']) th -= cam_rot_speed;
    // if(keys['l']) th += cam_rot_speed;
-   // if(keys['[']) fov--;
-   // if(keys[']']) fov++;
+
 
    // if(keys['w']) cam_pos.z-=cam_speed;
    // if(keys['s']) cam_pos.z+=cam_speed;
@@ -271,14 +270,24 @@ void processInput()
    if(keys['l']) th += cam_rot_speed;
    if(keys['j']) th -= cam_rot_speed;
 
+   if(keys['[']) fov--;
+   if(keys[']']) fov++;
+
    if(ph > 89.0f) ph = 89.0f;
    if(ph < -89.0f) ph = -89.0f;
+
+   if(fov >= 120) fov = 120;
+   if(fov <= 20) fov = 20;
+
+   th = fmod(th, 360);
 
    // GLfloat front[3];
    cam_front.x = cos(TWO_PI * th/360.0) * cos(TWO_PI * ph/360.0);
    cam_front.y = sin(TWO_PI * ph/360.0);
    cam_front.z = sin(TWO_PI * th/360.0) * cos(TWO_PI * ph/360.0);
    normalizeVector(&cam_front);
+
+   Project(fov,asp,dim);
 }
 
 double dimmer = 0;
@@ -376,7 +385,7 @@ void display()
       float Specular[]  = {0.01*specular,0.01*specular,0.01*specular,1.0};
       //  Light position
       float pos_sun[]  = {0.0,distance*Sin(zh),distance*Cos(zh),0.0};
-      float pos_moon[]  = {0.0,distance*Sin(zh + 180),distance*Cos(zh + 180),0.0};
+      // float pos_moon[]  = {0.0,distance*Sin(zh + 180),distance*Cos(zh + 180),0.0};
       //  Draw light pos_sun as ball (still no lighting here)
       glColor3f(1,1,1);
 
@@ -401,7 +410,7 @@ void display()
 
       // draw moon 
       // TODO texture
-      ball(pos_moon[0],pos_moon[1],pos_moon[2] , 150);
+      // ball(pos_moon[0],pos_moon[1],pos_moon[2] , 150);
    }
    else
       glDisable(GL_LIGHTING);
@@ -484,8 +493,8 @@ void display()
    glDisable(GL_BLEND);
 
    // draw "player"
-   glColor3f(1,0,0);
-   cube(0, 0, 0, .25, .25, .25, 0, 0, 0);
+   // glColor3f(1,0,0);
+   // cube(0, 0, 0, .25, .25, .25, 0, 0, 0);
 
    glDisable(GL_LIGHTING);
    glColor3f(1,1,1);

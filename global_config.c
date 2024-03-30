@@ -14,11 +14,11 @@ int chunk_res_faces = CHUNK_RES-1;
 // CAMERA STUFF
 // double cam_x = 0.0001, cam_z = 0.0001, cam_y=0.0001;
 double cam_y_offset = 0;
-double cam_speed = 10;
+double cam_speed = 50;
 float cam_rot_speed = 2.0f;
 float th=0;         //  Azimuth of view angle
 float ph=0;         //  Elevation of view angle
-int fov=55;       //  Field of view (for perspective)
+int fov=80;       //  Field of view (for perspective)
 double asp=1;     //  Aspect ratio
 double dim=6;     //  Size of world
 double sens = 5;

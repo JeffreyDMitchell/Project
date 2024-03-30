@@ -1,9 +1,18 @@
-FINAL PROJECT: PROGRESS UPDATE
 
-Instructions:
+    _______             __   ____               _           __ 
+   / ____(_)___  ____ _/ /  / __ \_________    (_)__  _____/ /_
+  / /_  / / __ \/ __ `/ /  / /_/ / ___/ __ \  / / _ \/ ___/ __/
+ / __/ / / / / / /_/ / /  / ____/ /  / /_/ / / /  __/ /__/ /_  
+/_/   /_/_/ /_/\__,_/_/  /_/   /_/   \____/_/ /\___/\___/\__/  
+                                         /___/                 
+
+##############
+#Instructions#
+##############
+
 Generally, the following commands should be used to compile and run the program:
 
-    make clean && make -k && ./project
+    make clean && make -k && ./final
 
 My system has both intel integrated graphics, and a dedicated nvidia GPU. To get openGL to make use of the proper adapter, I also set a few environment variables:
 
@@ -11,29 +20,57 @@ My system has both intel integrated graphics, and a dedicated nvidia GPU. To get
 
 Bringing the entire command to:
 
-    make clean && make -j && __NV_PRIME_RENDER_OFFLOAD=1 __VK_LAYER_NV_optimus=NVIDIA_only __GLX_VENDOR_LIBRARY_NAME=nvidia ./project
+    make clean && make -j && __NV_PRIME_RENDER_OFFLOAD=1 __VK_LAYER_NV_optimus=NVIDIA_only __GLX_VENDOR_LIBRARY_NAME=nvidia ./final
 
-NOTICE:
-I only have regular access to a ubuntu system. I cannot guarantee that it will compile or run on Mac OS, as I do not have one to test with. I have used the professors Makefile, but have not paid any special attention to any systems other than linux. If it compiles at all, it will likely run without fast optimization and openmp, meaning performance will be poor. I will try to get my hand on these systems for the final submission.
-
-Program controls:
-    eq ------------------ decrease/increase FOV
-    uo ------------------ decrease/increase player height
-    wasd ---------------- rotate scene/view
+##################
+#Program controls#
+##################
+    [] ------------------ decrease/increase FOV
+    qe ------------------ descend/ascend
+    MOUSE --------------- rotate scene/view
+    ESCAPE -------------- unlock mouse
+    ijkl ---------------- rotate scene/view (alternate)
+    wasd ---------------- traverse world
     Arrow Up/Down ------- select parameters
     Arrow Left/Right ---- modify parameters
 
-TODO:
-    proper day night cycle
-        stars at night
-        red/orange sunrise sunset
-    clouds
-    ground scatter
-        rocks
-        trees
-    more interesting land generation (in the works, not ready for prime time)
-        biomes
-        coloring
-    player
-        model
-        simple interactions with world
+############
+#GOOD STUFF#
+############
+    Endless chunk based procedural world generation! 
+    It's a fun, flexible system that allows for the creation of all sorts of biomes.
+
+    Biomes meld and blend seemlessly together, no harsh edges
+
+    Neat coloring system which takes height and terrain normals into account
+
+    Rudementary collision system to keep view from going subterrainian!
+
+################
+#NOTES/CONCERNS#
+################
+    While the "mouse control" parameter is true, the cursor will be locked and hidden.
+    Press ESCAPE, or toggle this setting to release.
+    Sensitivity can be configured in the parameters!
+
+    Chunk generation is slow, and unfortunately still synchronous.
+    If you want to fly around unhindered, I recommend turnning the render distance way up, and then back down, effectively pre-caching chunks
+
+    The stutters that chunk generation produce will often throw your view way off course, as the cursor was allowed to deviate so far from the center.
+    If this is irritating, try the above
+
+    One of my functions requires an absolutely massive stack, on the order of 5 megs (its bad programming). This segfaults on windows. 
+    I run ubuntu 22.04, and the maximumstack size appears to be 8192KB by default. 
+    Assuming this holds true for 23.04, this is unlikely to cause you any issues.
+
+##############
+#ATTRIBUTIONS#
+##############
+    Sean Barrett
+    noise is generated courtesy of the "stb_perlin" library
+
+    Vlakkies
+    much of this project is built off of the homeworks, which in turn was built from the provided examples.
+    much of the makefile was provided by the professor
+
+    Thanks for a fantastic semester!

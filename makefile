@@ -1,5 +1,4 @@
-# Example 13
-EXE=project
+EXE=final
 
 # Main target
 all: $(EXE)
@@ -13,11 +12,17 @@ else
 # OSX
 ifeq "$(shell uname)" "Darwin"
 RES=$(shell uname -r|sed -E 's/(.).*/\1/'|tr 12 21)
-CFLG=-Ofast -Wall -Wno-deprecated-declarations -DRES=$(RES)
+# Explicitly set the path to the Homebrew-installed LLVM compilers
+CC=/opt/homebrew/opt/llvm/bin/clang
+CXX=/opt/homebrew/opt/llvm/bin/clang++
+CFLG=-Ofast -Wall -Wno-deprecated-declarations -DRES=$(RES) -fopenmp
+# Add the necessary flags for Homebrew's LLVM
+CFLG+= -I/opt/homebrew/opt/llvm/include
+LDFLAGS+= -L/opt/homebrew/opt/llvm/lib -Wl,-rpath,/opt/homebrew/opt/llvm/lib
 LIBS=-framework GLUT -framework OpenGL
 # Linux/Unix/Solaris
 else
-CFLG=-Ofast -fopenmp -Wall -g
+CFLG=-Ofast -fopenmp -fopenacc -Wall -g
 LIBS=-lglut -lGLU -lGL -lm
 endif
 # OSX/Linux/Unix/Solaris
@@ -32,7 +37,7 @@ loadtexbmp.o: loadtexbmp.c CSCIx229.h
 loadobj.o: loadobj.c CSCIx229.h
 projection.o: projection.c CSCIx229.h
 
-project.o: project.c CSCIx229.h stb_perlin.h global_config.h graphics_utils.h
+final.o: final.c CSCIx229.h stb_perlin.h global_config.h graphics_utils.h chunk.h biome.h
 global_config.o: global_config.c global_config.h
 
 # Create archive
@@ -41,13 +46,13 @@ CSCIx229.a: fatal.o errcheck.o print.o loadtexbmp.o loadobj.o projection.o
 
 # Compile rules
 .c.o:
-	gcc -c $(CFLG)  $<
+	$(CC) -c $(CFLG) $<
 .cpp.o:
-	g++ -c $(CFLG)  $<
+	$(CXX) -c $(CFLG) $<
 
 # Link
-project:project.o CSCIx229.a global_config.o
-	gcc $(CFLG) -o $@ $^  $(LIBS)
+final: final.o CSCIx229.a global_config.o
+	$(CC) $(CFLG) -o $@ $^ $(LIBS)
 
 # Clean
 clean:
